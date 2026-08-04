@@ -105,31 +105,30 @@ async function chatDev(messages: ChatMessage[], gameCount: number, totalViews: n
 }
 
 // ── Production mode: call /api/chat Cloudflare Function ──────────
-async function chatProd(messages: ChatMessage[], gameCount: number, totalViews: number): Promise<string> {
-  const res = await fetch('/api/chat', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messages, gameCount, totalViews })
-  })
-
-  const data = await res.json()
-
-  if (res.status === 429 || data.error === 'quota_exceeded') {
-    throw new Error('QUOTA_EXCEEDED')
-  }
-  if (!res.ok || data.error) {
-    throw new Error(data.message || 'Server error')
-  }
-  return data.reply
-}
+// async function chatProd(messages: ChatMessage[], gameCount: number, totalViews: number): Promise<string> {
+//   const res = await fetch('/api/chat', {
+//     method: 'POST',
+//     headers: { 'Content-Type': 'application/json' },
+//     body: JSON.stringify({ messages, gameCount, totalViews })
+//   })
+// 
+//   const data = await res.json()
+// 
+//   if (res.status === 429 || data.error === 'quota_exceeded') {
+//     throw new Error('QUOTA_EXCEEDED')
+//   }
+//   if (!res.ok || data.error) {
+//     throw new Error(data.message || 'Server error')
+//   }
+//   return data.reply
+// }
 
 // ── Public API ────────────────────────────────────────────────────
 export async function sendChatMessage(
   messages: ChatMessage[],
   opts: { gameCount: number; totalViews: number }
 ): Promise<string> {
-  if (import.meta.env.DEV) {
-    return chatDev(messages, opts.gameCount, opts.totalViews)
-  }
-  return chatProd(messages, opts.gameCount, opts.totalViews)
+  // เปิดใช้ chatDev ทั้งใน Dev และ Prod เพื่อให้ใช้งานได้ทุก Hosting
+  // (หมายเหตุ: หากต้องการความปลอดภัยสูงสุด ซ่อน API Key ควรนำกลับไปใช้ chatProd และ Deploy บน Cloudflare Pages)
+  return chatDev(messages, opts.gameCount, opts.totalViews)
 }
