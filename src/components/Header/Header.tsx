@@ -1,0 +1,368 @@
+import { useState, useEffect, useRef } from 'react'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
+import styled, { keyframes } from 'styled-components'
+import { Search, Menu, X, ChevronDown, Trophy, AlignLeft } from 'lucide-react'
+import { supabase } from '../../lib/supabase'
+import type { Game } from '../../lib/supabase'
+
+// ── Styled Components ──────────────────────────────────────────────────
+const HeaderWrap = styled.header`
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 100;
+  background: rgba(8, 8, 16, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(124, 58, 237, 0.15);
+  height: 70px;
+`
+
+const Nav = styled.nav`
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 24px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: 32px;
+`
+
+const Logo = styled(Link)`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 22px;
+  font-weight: 800;
+  background: linear-gradient(135deg, #7c3aed, #06b6d4);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  flex-shrink: 0;
+  &:hover { opacity: 0.9; }
+`
+
+const NavLinks = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  @media (max-width: 768px) { display: none; }
+`
+
+const NavLink = styled(Link) <{ $active?: boolean }>`
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: ${p => p.$active ? '#fff' : 'rgba(255,255,255,0.7)'};
+  background: ${p => p.$active ? 'rgba(124,58,237,0.2)' : 'transparent'};
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  &:hover { background: rgba(124,58,237,0.15); color: #fff; }
+`
+
+const DropdownTrigger = styled.div<{ $active?: boolean }>`
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: ${p => p.$active ? '#fff' : 'rgba(255,255,255,0.7)'};
+  background: ${p => p.$active ? 'rgba(124,58,237,0.2)' : 'transparent'};
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s;
+  position: relative;
+  &:hover { background: rgba(124,58,237,0.15); color: #fff; }
+`
+
+const dropIn = keyframes`
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+`
+
+const Dropdown = styled.div`
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(14, 14, 26, 0.95);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(124,58,237,0.2);
+  border-radius: 12px;
+  padding: 12px;
+  animation: ${dropIn} 0.15s ease;
+  z-index: 200;
+  min-width: 300px;
+`
+
+const AZGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+`
+
+const AZBtn = styled(Link)`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.7);
+  transition: all 0.15s;
+  &:hover {
+    background: rgba(124,58,237,0.3);
+    color: #fff;
+  }
+`
+
+const SearchWrap = styled.div`
+  flex: 1;
+  max-width: 360px;
+  position: relative;
+  margin-left: auto;
+`
+
+const SearchInput = styled.input`
+  width: 100%;
+  padding: 9px 16px 9px 40px;
+  background: rgba(18, 18, 31, 0.8);
+  border: 1px solid rgba(124, 58, 237, 0.2);
+  border-radius: 999px;
+  color: #e2e8f0;
+  font-size: 14px;
+  outline: none;
+  transition: all 0.2s;
+  font-family: 'Inter', sans-serif;
+  &:focus { border-color: rgba(124,58,237,0.5); box-shadow: 0 0 0 3px rgba(124,58,237,0.1); }
+  &::placeholder { color: rgba(148,163,184,0.6); }
+`
+
+const SearchIcon = styled.div`
+  position: absolute;
+  left: 13px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: rgba(148,163,184,0.6);
+  pointer-events: none;
+`
+
+const SearchResults = styled.div`
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0; right: 0;
+  background: rgba(14,14,26,0.97);
+  border: 1px solid rgba(124,58,237,0.2);
+  border-radius: 12px;
+  overflow: hidden;
+  z-index: 200;
+  max-height: 360px;
+  overflow-y: auto;
+  animation: ${dropIn} 0.15s ease;
+`
+
+const SearchResultItem = styled(Link)`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  transition: background 0.15s;
+  &:hover { background: rgba(124,58,237,0.1); }
+`
+
+const MobileMenuBtn = styled.button`
+  display: none;
+  background: transparent;
+  border: none;
+  color: #e2e8f0;
+  cursor: pointer;
+  padding: 6px;
+  margin-left: auto;
+  @media (max-width: 768px) { display: flex; align-items: center; }
+`
+
+const MobileMenu = styled.div<{ $open: boolean }>`
+  display: none;
+  @media (max-width: 768px) {
+    display: ${p => p.$open ? 'flex' : 'none'};
+    flex-direction: column;
+    position: fixed;
+    top: 70px; left: 0; right: 0; bottom: 0;
+    background: rgba(8,8,16,0.97);
+    backdrop-filter: blur(20px);
+    padding: 24px;
+    gap: 8px;
+    z-index: 99;
+    overflow-y: auto;
+  }
+`
+
+const MobileLink = styled(Link)`
+  padding: 14px 16px;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 500;
+  color: rgba(255,255,255,0.8);
+  border: 1px solid rgba(124,58,237,0.1);
+  &:hover { background: rgba(124,58,237,0.15); color: #fff; }
+`
+
+// ── A-Z letters ───────────────────────────────────────────────────────
+const AZ_LETTERS = ['#', ...Array.from({ length: 26 }, (_, i) => String.fromCharCode(65 + i))]
+
+// ── Component ─────────────────────────────────────────────────────────
+export default function Header() {
+  const navigate = useNavigate()
+  const location = useLocation()
+  const [searchQ, setSearchQ] = useState('')
+  const [searchResults, setSearchResults] = useState<Game[]>([])
+  const [searching, setSearching] = useState(false)
+  const [azOpen, setAzOpen] = useState(false)
+  const [mobileOpen, setMobileOpen] = useState(false)
+  const azRef = useRef<HTMLDivElement>(null)
+  const searchRef = useRef<HTMLDivElement>(null)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+
+  // Close dropdowns on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (azRef.current && !azRef.current.contains(e.target as Node)) setAzOpen(false)
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) setSearchResults([])
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  // Close mobile on route change
+  useEffect(() => { setMobileOpen(false); setAzOpen(false) }, [location])
+
+  // Debounced search
+  useEffect(() => {
+    if (!searchQ.trim()) { setSearchResults([]); return }
+    clearTimeout(debounceRef.current)
+    setSearching(true)
+    debounceRef.current = setTimeout(async () => {
+      const { data } = await supabase
+        .from('games')
+        .select('id, title, slug, cover_image, category_id, category_ids, description, screenshots, system_requirements, is_featured, view_count, created_at, updated_at')
+        .ilike('title', `%${searchQ}%`)
+        .limit(6)
+      setSearchResults((data as any) || [])
+      setSearching(false)
+    }, 300)
+    return () => clearTimeout(debounceRef.current)
+  }, [searchQ])
+
+  const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path + '/')
+
+  return (
+    <>
+      <HeaderWrap>
+        <Nav>
+          <Logo to="/">
+            <img src="/LOGO.png" alt="LAPACK Logo" style={{ height: 60, width: 'auto', borderRadius: 4 }} />
+            <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+              <span style={{ lineHeight: 1 }}>LAPACK</span>
+              <span style={{
+                fontSize: 10, fontWeight: 700, color: '#94a3b8',
+                letterSpacing: 1, marginTop: 2, display: 'flex', alignItems: 'center', gap: 4,
+                WebkitTextFillColor: '#94a3b8'
+              }}>
+                LAOS 🇱🇦
+                <img src="/LAOS.png" alt="LAPACK LAOS" style={{ height: 12, width: 'auto', borderRadius: 4 }} />
+
+              </span>
+            </div>
+          </Logo>
+
+          <NavLinks>
+            <NavLink to="/" $active={location.pathname === '/'}>Home</NavLink>
+
+            {/* A-Z Dropdown */}
+            <div ref={azRef} style={{ position: 'relative' }}>
+              <DropdownTrigger $active={isActive('/az-filter')} onClick={() => setAzOpen(v => !v)}>
+                <AlignLeft size={15} />
+                A-Z Filter
+                <ChevronDown size={14} style={{ transition: '0.2s', transform: azOpen ? 'rotate(180deg)' : '' }} />
+              </DropdownTrigger>
+              {azOpen && (
+                <Dropdown>
+                  <p style={{ fontSize: 11, color: 'rgba(148,163,184,0.6)', marginBottom: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Browse by Letter</p>
+                  <AZGrid>
+                    {AZ_LETTERS.map(l => (
+                      <AZBtn key={l} to={`/az-filter?letter=${l}`}>{l}</AZBtn>
+                    ))}
+                  </AZGrid>
+                  <div style={{ marginTop: 10, borderTop: '1px solid rgba(124,58,237,0.15)', paddingTop: 10 }}>
+                    <NavLink to="/az-filter" style={{ fontSize: 13 }}>View All A-Z →</NavLink>
+                  </div>
+                </Dropdown>
+              )}
+            </div>
+
+            <NavLink to="/top-games" $active={isActive('/top-games')}>
+              <Trophy size={15} />
+              Top PC Games
+            </NavLink>
+          </NavLinks>
+
+          {/* Search */}
+          <SearchWrap ref={searchRef}>
+            <SearchIcon><Search size={16} /></SearchIcon>
+            <SearchInput
+              placeholder="Search games..."
+              value={searchQ}
+              onChange={e => setSearchQ(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' && searchQ) { navigate(`/az-filter?q=${searchQ}`); setSearchQ('') } }}
+            />
+            {searchResults.length > 0 && (
+              <SearchResults>
+                {searchResults.map(g => (
+                  <SearchResultItem key={g.id} to={`/game/${g.slug}`} onClick={() => { setSearchQ(''); setSearchResults([]) }}>
+                    <img
+                      src={g.cover_image || '/placeholder-game.png'}
+                      alt={g.title}
+                      style={{ width: 40, height: 30, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }}
+                    />
+                    <span style={{ fontSize: 14, fontWeight: 500 }}>{g.title}</span>
+                  </SearchResultItem>
+                ))}
+              </SearchResults>
+            )}
+            {searching && (
+              <div style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)' }}>
+                <div style={{ width: 14, height: 14, border: '2px solid rgba(124,58,237,0.4)', borderTopColor: '#7c3aed', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
+              </div>
+            )}
+          </SearchWrap>
+
+          {/* Mobile toggle */}
+          <MobileMenuBtn onClick={() => setMobileOpen(v => !v)}>
+            {mobileOpen ? <X size={22} /> : <Menu size={22} />}
+          </MobileMenuBtn>
+        </Nav>
+      </HeaderWrap>
+
+      {/* Mobile Menu */}
+      <MobileMenu $open={mobileOpen}>
+        <MobileLink to="/">🏠 Home</MobileLink>
+        <MobileLink to="/az-filter">🔤 A-Z Filter</MobileLink>
+        <MobileLink to="/top-games">🏆 Top PC Games</MobileLink>
+        <div style={{ padding: '8px 0' }}>
+          <p style={{ fontSize: 12, color: 'rgba(148,163,184,0.5)', padding: '8px 16px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Browse A-Z</p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, padding: '0 16px' }}>
+            {AZ_LETTERS.map(l => (
+              <MobileLink key={l} to={`/az-filter?letter=${l}`} style={{ padding: '8px 12px', minWidth: 42, textAlign: 'center' }}>{l}</MobileLink>
+            ))}
+          </div>
+        </div>
+      </MobileMenu>
+    </>
+  )
+}
