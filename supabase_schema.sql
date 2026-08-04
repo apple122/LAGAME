@@ -141,3 +141,69 @@ BEGIN
 END;
 $$;
 
+-- ===================================================
+-- SUPPORT CHAT TABLES
+-- ===================================================
+
+-- One row per user support session (identified by localStorage token)
+CREATE TABLE IF NOT EXISTS support_sessions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  session_token TEXT NOT NULL UNIQUE,
+  user_label TEXT NOT NULL DEFAULT 'ผู้ใช้ไม่ระบุตัวตน',
+  platform TEXT NOT NULL DEFAULT 'other',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  last_seen TIMESTAMPTZ DEFAULT NOW(),
+  is_read_by_admin BOOLEAN DEFAULT FALSE,
+  message_count INTEGER DEFAULT 0
+);
+
+-- Every message in a session (role: 'user' | 'admin')
+CREATE TABLE IF NOT EXISTS support_messages (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  session_id UUID NOT NULL REFERENCES support_sessions(id) ON DELETE CASCADE,
+  role TEXT NOT NULL CHECK (role IN ('user', 'admin')),
+  content TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Admin notification settings (email to notify when user contacts)
+CREATE TABLE IF NOT EXISTS notification_settings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  notify_email TEXT NOT NULL DEFAULT 'peun955@gmail.com',
+  notify_enabled BOOLEAN DEFAULT TRUE,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+INSERT INTO notification_settings (notify_email, notify_enabled)
+VALUES ('peun955@gmail.com', true)
+ON CONFLICT DO NOTHING;
+
+-- Enable RLS
+ALTER TABLE support_sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE support_messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE notification_settings ENABLE ROW LEVEL SECURITY;
+
+-- Public read/write for support (users need to create sessions and messages)
+CREATE POLICY "Anon full access support_sessions" ON support_sessions FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Anon full access support_messages" ON support_messages FOR ALL USING (true) WITH CHECK (true);
+-- Only admin (anon key) reads notification settings
+CREATE POLICY "Anon can read notification_settings" ON notification_settings FOR SELECT USING (true);
+CREATE POLICY "Anon can update notification_settings" ON notification_settings FOR UPDATE USING (true) WITH CHECK (true);
+
+-- Enable Realtime on support tables (run in Supabase dashboard if needed)
+ALTER PUBLICATION supabase_realtime ADD TABLE support_sessions;
+ALTER PUBLICATION supabase_realtime ADD TABLE support_messages;
+
+-- Add attachment columns to support_messages
+ALTER TABLE support_messages ADD COLUMN IF NOT EXISTS attachment_url TEXT;
+ALTER TABLE support_messages ADD COLUMN IF NOT EXISTS attachment_type TEXT; -- 'image' or 'file'
+
+-- ===================================================
+-- STORAGE BUCKET FOR CHAT ATTACHMENTS
+-- ===================================================
+INSERT INTO storage.buckets (id, name, public) 
+VALUES ('chat_attachments', 'chat_attachments', true) 
+ON CONFLICT (id) DO NOTHING;
+
+-- Public access to chat attachments
+CREATE POLICY "Anon can view chat attachments" ON storage.objects FOR SELECT USING (bucket_id = 'chat_attachments');
+CREATE POLICY "Anon can upload chat attachments" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'chat_attachments');

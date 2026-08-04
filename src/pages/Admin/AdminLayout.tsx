@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import styled from 'styled-components'
-import { LayoutDashboard, Gamepad2, Tags, Megaphone, LogOut, Menu, X, Key } from 'lucide-react'
+import { LayoutDashboard, Gamepad2, Tags, Megaphone, LogOut, Menu, X, Key, MessageSquare } from 'lucide-react'
 import { useAdminAuth } from '../../context/AdminAuthContext'
 
 const Shell = styled.div`display: flex; min-height: 100vh; background: #080810;`
@@ -80,6 +80,7 @@ const Content = styled.div`padding: 28px 24px;`
 
 const navItems = [
   { to: '/ap-admin/dashboard', icon: <LayoutDashboard size={16} />, label: 'Dashboard' },
+  { to: '/ap-admin/support', icon: <MessageSquare size={16} />, label: 'Support Chat' },
   { to: '/ap-admin/games', icon: <Gamepad2 size={16} />, label: 'Manage Games' },
   { to: '/ap-admin/categories', icon: <Tags size={16} />, label: 'Categories' },
   { to: '/ap-admin/api-keys', icon: <Key size={16} />, label: 'API Keys' },

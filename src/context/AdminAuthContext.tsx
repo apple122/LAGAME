@@ -12,7 +12,7 @@ type AdminAuthContextType = {
 const AdminAuthContext = createContext<AdminAuthContextType>({
   isAuthenticated: false,
   login: () => false,
-  logout: () => {},
+  logout: () => { },
 })
 
 export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -32,6 +32,7 @@ export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const logout = () => {
     sessionStorage.removeItem(SESSION_KEY)
     setIsAuthenticated(false)
+    window.location.href = '/'
   }
 
   return (

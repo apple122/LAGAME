@@ -14,6 +14,7 @@ import EditGame from './pages/Admin/Games/EditGame'
 import ManageCategories from './pages/Admin/Categories/ManageCategories'
 import AdSettingsPage from './pages/Admin/Ads/AdSettingsPage'
 import ManageApiKeys from './pages/Admin/ApiKeys/ManageApiKeys'
+import AdminSupport from './pages/Admin/Support/AdminSupport'
 import { AdminAuthProvider } from './context/AdminAuthContext'
 import { AdSettingsProvider } from './context/AdSettingsContext'
 import ProtectedAdminRoute from './components/ProtectedAdminRoute'
@@ -51,6 +52,7 @@ function App() {
               <Route path="games" element={<ManageGames />} />
               <Route path="games/add" element={<AddGame />} />
               <Route path="games/edit/:id" element={<EditGame />} />
+              <Route path="support" element={<AdminSupport />} />
               <Route path="categories" element={<ManageCategories />} />
               <Route path="ads" element={<AdSettingsPage />} />
               <Route path="api-keys" element={<ManageApiKeys />} />
