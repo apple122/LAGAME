@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import styled from 'styled-components'
-import { Download, Eye } from 'lucide-react'
+import { Download, Eye, Monitor, Apple } from 'lucide-react'
 import type { Game } from '../../lib/supabase'
 
 const Card = styled(Link)`
@@ -64,6 +64,16 @@ const ViewBtn = styled.div`
 
 const Body = styled.div`
   padding: 14px 16px 16px;
+  background: rgba(18, 18, 31, 1);
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 2;
+`
+
+const BodySpacer = styled.div`
+  height: 74px; /* Matches normal height of Body to maintain card layout */
 `
 
 const Title = styled.h3`
@@ -73,9 +83,15 @@ const Title = styled.h3`
   color: #e2e8f0;
   margin-bottom: 8px;
   line-height: 1.3;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
+  
+  ${Card}:hover & {
+    -webkit-line-clamp: unset;
+    display: block;
+  }
 `
 
 const Meta = styled.div`
@@ -138,10 +154,19 @@ export default function GameCard({ game }: Props) {
         </Overlay>
       </CoverWrap>
 
+      <BodySpacer />
       <Body>
         <Title title={game.title}>{game.title}</Title>
         <Meta>
-          <CategoryBadge>{game.category?.name || 'Game'}</CategoryBadge>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <CategoryBadge>{game.category?.name || 'Game'}</CategoryBadge>
+            {game.system_requirements?.platforms && game.system_requirements.platforms.length > 0 && (
+              <div style={{ display: 'flex', gap: 8, color: 'rgba(148,163,184,0.7)', fontSize: 11, fontWeight: 600 }}>
+                {game.system_requirements.platforms.includes('windows') && <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}><Monitor size={12} /> Win</div>}
+                {game.system_requirements.platforms.includes('macos') && <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}><Apple size={12} /> Mac</div>}
+              </div>
+            )}
+          </div>
           <DownloadCount>
             <Download size={11} />
             {game.download_links?.length ?? 0} links

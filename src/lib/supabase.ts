@@ -23,6 +23,7 @@ export type Category = {
 }
 
 export type SystemRequirements = {
+  platforms?: string[]
   minimum: { os?: string; cpu?: string; ram?: string; gpu?: string; storage?: string; about?: string }
   recommended: { os?: string; cpu?: string; ram?: string; gpu?: string; storage?: string; about?: string }
 }

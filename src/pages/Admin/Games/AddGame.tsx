@@ -190,7 +190,7 @@ const AiResultRow = styled.div`display: flex; gap: 8px; margin-bottom: 6px; alig
 const AiResultKey = styled.span`color: #a855f7; font-weight: 700; min-width: 90px; flex-shrink: 0;`
 const AiResultVal = styled.span`color: #e2e8f0; line-height: 1.5;`
 
-type LinkItem = { cloud_name: string; url: string }
+type LinkItem = { cloud_name: string; url: string; platform?: string }
 
 function slugify(str: string) {
   return str.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
@@ -217,10 +217,11 @@ export default function AddGame() {
   const [categoryIds, setCategoryIds] = useState<string[]>([])
   const [isFeatured, setIsFeatured] = useState(false)
   // System requirements
+  const [platforms, setPlatforms] = useState<string[]>(['windows'])
   const [minAbout, setMinAbout] = useState('')
   const [recAbout, setRecAbout] = useState('')
   // Download links
-  const [links, setLinks] = useState<LinkItem[]>([{ cloud_name: 'Google Drive', url: '' }])
+  const [links, setLinks] = useState<LinkItem[]>([{ cloud_name: 'Google Drive', url: '', platform: 'windows' }])
   // Save state
   const [saving, setSaving] = useState(false)
   const [saveMsg, setSaveMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
@@ -295,7 +296,7 @@ Return ONLY the raw JSON object. No markdown, no code blocks, no explanation.`
     setAiPreview(null)
   }
 
-  const addLink = () => setLinks(l => [...l, { cloud_name: 'Google Drive', url: '' }])
+  const addLink = () => setLinks(l => [...l, { cloud_name: 'Google Drive', url: '', platform: 'windows' }])
   const removeLink = (i: number) => setLinks(l => l.filter((_, idx) => idx !== i))
   const updateLink = (i: number, field: keyof LinkItem, val: string) => {
     setLinks(l => l.map((item, idx) => idx === i ? { ...item, [field]: val } : item))
@@ -392,6 +393,7 @@ Return ONLY the raw JSON object. No markdown, no code blocks, no explanation.`
         category_ids: categoryIds.length > 0 ? categoryIds : null,
         is_featured: isFeatured,
         system_requirements: {
+          platforms,
           minimum: { about: minAbout },
           recommended: { about: recAbout },
         },
@@ -402,7 +404,7 @@ Return ONLY the raw JSON object. No markdown, no code blocks, no explanation.`
       const validLinks = links.filter(l => l.url.trim())
       if (validLinks.length > 0) {
         await supabase.from('download_links').insert(
-          validLinks.map((l, i) => ({ game_id: (gameData as any).id, cloud_name: l.cloud_name, url: l.url.trim(), sort_order: i })) as any
+          validLinks.map((l, i) => ({ game_id: (gameData as any).id, cloud_name: `[${l.platform || 'windows'}] ${l.cloud_name}`, url: l.url.trim(), sort_order: i })) as any
         )
       }
 
@@ -604,6 +606,25 @@ Return ONLY the raw JSON object. No markdown, no code blocks, no explanation.`
 
         {/* ── System Requirements ────────────────────── */}
         <SectionTitle>💻 System Requirements</SectionTitle>
+        <Field>
+          <Label>Supported Platforms</Label>
+          <div style={{ display: 'flex', gap: 16 }}>
+            <Label style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 500, color: '#e2e8f0' }}>
+              <input type="checkbox" checked={platforms.includes('windows')} onChange={e => {
+                if (e.target.checked) setPlatforms(p => [...p, 'windows'])
+                else setPlatforms(p => p.filter(x => x !== 'windows'))
+              }} />
+              Windows
+            </Label>
+            <Label style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 500, color: '#e2e8f0' }}>
+              <input type="checkbox" checked={platforms.includes('macos')} onChange={e => {
+                if (e.target.checked) setPlatforms(p => [...p, 'macos'])
+                else setPlatforms(p => p.filter(x => x !== 'macos'))
+              }} />
+              macOS
+            </Label>
+          </div>
+        </Field>
         <SpecGrid>
           <div>
             <p style={{ fontSize: 12, fontWeight: 700, color: 'rgba(148,163,184,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10 }}>Minimum</p>
@@ -619,6 +640,10 @@ Return ONLY the raw JSON object. No markdown, no code blocks, no explanation.`
         <SectionTitle>☁️ Download Links</SectionTitle>
         {links.map((link, i) => (
           <LinkRow key={i}>
+            <CloudSelect value={link.platform || 'windows'} onChange={e => updateLink(i, 'platform', e.target.value)} style={{ width: 110 }}>
+              <option value="windows">Windows</option>
+              <option value="macos">macOS</option>
+            </CloudSelect>
             <CloudSelect value={link.cloud_name} onChange={e => updateLink(i, 'cloud_name', e.target.value)}>
               {CLOUD_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
             </CloudSelect>

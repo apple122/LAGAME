@@ -120,7 +120,7 @@ const AiResultRow = styled.div`display: flex; gap: 8px; margin-bottom: 6px; alig
 const AiResultKey = styled.span`color: #a855f7; font-weight: 700; min-width: 90px; flex-shrink: 0;`
 const AiResultVal = styled.span`color: #e2e8f0; line-height: 1.5;`
 
-type LinkItem = { id?: string; cloud_name: string; url: string }
+type LinkItem = { id?: string; cloud_name: string; url: string; platform?: string }
 
 export default function EditGame() {
   const { id } = useParams()
@@ -135,11 +135,12 @@ export default function EditGame() {
   const [coverImage, setCoverImage] = useState('')
   const [categoryIds, setCategoryIds] = useState<string[]>([])
   const [isFeatured, setIsFeatured] = useState(false)
+  const [platforms, setPlatforms] = useState<string[]>(['windows'])
   const [minAbout, setMinAbout] = useState('')
   const [recAbout, setRecAbout] = useState('')
   const [screenshots, setScreenshots] = useState<string[]>([])
   const [newScreenshot, setNewScreenshot] = useState('')
-  const [links, setLinks] = useState<LinkItem[]>([{ cloud_name: 'Google Drive', url: '' }])
+  const [links, setLinks] = useState<LinkItem[]>([{ cloud_name: 'Google Drive', url: '', platform: 'windows' }])
   const [saving, setSaving] = useState(false)
   const [saveMsg, setSaveMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   // Upload state — files are staged locally, uploaded only on Save
@@ -279,16 +280,29 @@ Return ONLY the raw JSON object. No markdown, no code blocks, no explanation.`
         setCategoryIds(g.category_ids || (g.category_id ? [g.category_id] : []))
         setScreenshots(g.screenshots || [])
         const sr = g.system_requirements || {}
+        setPlatforms(sr.platforms || ['windows'])
         setMinAbout(sr.minimum?.about || '')
         setRecAbout(sr.recommended?.about || '')
       }
-      setLinks((dl as any)?.length ? (dl as any) : [{ cloud_name: 'Google Drive', url: '' }])
+      const parsedLinks = (dl as any)?.length ? (dl as any).map((link: any) => {
+        let platform = 'windows';
+        let cloud_name = link.cloud_name;
+        if (cloud_name.startsWith('[windows] ')) {
+          platform = 'windows';
+          cloud_name = cloud_name.replace('[windows] ', '');
+        } else if (cloud_name.startsWith('[macos] ')) {
+          platform = 'macos';
+          cloud_name = cloud_name.replace('[macos] ', '');
+        }
+        return { ...link, platform, cloud_name };
+      }) : [{ cloud_name: 'Google Drive', url: '', platform: 'windows' }];
+      setLinks(parsedLinks)
       setLoading(false)
     }
     if (id) load()
   }, [id])
 
-  const addLink = () => setLinks(l => [...l, { cloud_name: 'Google Drive', url: '' }])
+  const addLink = () => setLinks(l => [...l, { cloud_name: 'Google Drive', url: '', platform: 'windows' }])
   const removeLink = (i: number) => setLinks(l => l.filter((_, idx) => idx !== i))
   const updateLink = (i: number, field: keyof LinkItem, val: string) => setLinks(l => l.map((item, idx) => idx === i ? { ...item, [field]: val } : item))
 
@@ -323,6 +337,7 @@ Return ONLY the raw JSON object. No markdown, no code blocks, no explanation.`
         file_size: fileSize || null,
         video_url: videoUrl || null,
         system_requirements: {
+          platforms,
           minimum: { about: minAbout },
           recommended: { about: recAbout },
         },
@@ -332,7 +347,7 @@ Return ONLY the raw JSON object. No markdown, no code blocks, no explanation.`
       await supabase.from('download_links').delete().eq('game_id', id)
       const validLinks = links.filter(l => l.url.trim())
       if (validLinks.length > 0) {
-        await supabase.from('download_links').insert(validLinks.map((l, i) => ({ game_id: id, cloud_name: l.cloud_name, url: l.url.trim(), sort_order: i })) as any)
+        await supabase.from('download_links').insert(validLinks.map((l, i) => ({ game_id: id, cloud_name: `[${l.platform || 'windows'}] ${l.cloud_name}`, url: l.url.trim(), sort_order: i })) as any)
       }
 
       setSaveMsg({ type: 'success', text: 'Game updated successfully!' })
@@ -517,6 +532,25 @@ Return ONLY the raw JSON object. No markdown, no code blocks, no explanation.`
         <Field><Label style={{ display: 'flex', alignItems: 'center', gap: 8 }}><input type="checkbox" checked={isFeatured} onChange={e => setIsFeatured(e.target.checked)} /> Featured</Label></Field>
 
         <SectionTitle>💻 System Requirements</SectionTitle>
+        <Field>
+          <Label>Supported Platforms</Label>
+          <div style={{ display: 'flex', gap: 16 }}>
+            <Label style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 500, color: '#e2e8f0' }}>
+              <input type="checkbox" checked={platforms.includes('windows')} onChange={e => {
+                if (e.target.checked) setPlatforms(p => [...p, 'windows'])
+                else setPlatforms(p => p.filter(x => x !== 'windows'))
+              }} />
+              Windows
+            </Label>
+            <Label style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 500, color: '#e2e8f0' }}>
+              <input type="checkbox" checked={platforms.includes('macos')} onChange={e => {
+                if (e.target.checked) setPlatforms(p => [...p, 'macos'])
+                else setPlatforms(p => p.filter(x => x !== 'macos'))
+              }} />
+              macOS
+            </Label>
+          </div>
+        </Field>
         <SpecGrid>
           <div>
             <p style={{ fontSize: 12, fontWeight: 700, color: 'rgba(148,163,184,0.5)', textTransform: 'uppercase', marginBottom: 10 }}>Minimum</p>
@@ -531,6 +565,10 @@ Return ONLY the raw JSON object. No markdown, no code blocks, no explanation.`
         <SectionTitle>☁️ Download Links</SectionTitle>
         {links.map((link, i) => (
           <LinkRow key={i}>
+            <CloudSelect value={link.platform || 'windows'} onChange={e => updateLink(i, 'platform', e.target.value)} style={{ width: 110 }}>
+              <option value="windows">Windows</option>
+              <option value="macos">macOS</option>
+            </CloudSelect>
             <CloudSelect value={link.cloud_name} onChange={e => updateLink(i, 'cloud_name', e.target.value)}>{CLOUD_OPTIONS.map(o => <option key={o}>{o}</option>)}</CloudSelect>
             <LinkInput placeholder="https://..." value={link.url} onChange={e => updateLink(i, 'url', e.target.value)} />
             {links.length > 1 && <IconBtn onClick={() => removeLink(i)}><Minus size={14} /></IconBtn>}

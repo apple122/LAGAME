@@ -25,6 +25,10 @@ const Nav = styled.nav`
   display: flex;
   align-items: center;
   gap: 32px;
+  @media (max-width: 768px) {
+    padding: 0 16px;
+    gap: 16px;
+  }
 `
 
 const Logo = styled(Link)`
@@ -122,35 +126,101 @@ const AZBtn = styled(Link)`
   }
 `
 
-const SearchWrap = styled.div`
+const SearchWrap = styled.div<{ $expanded?: boolean }>`
   flex: 1;
   max-width: 360px;
   position: relative;
   margin-left: auto;
+
+  @media (max-width: 768px) {
+    position: ${p => p.$expanded ? 'fixed' : 'relative'};
+    ${p => p.$expanded ? `
+      inset: 0;
+      max-width: 100%;
+      padding: 0 16px;
+      height: 70px;
+      display: flex;
+      align-items: center;
+      background: rgba(8,8,16,0.97);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      z-index: 300;
+      border-bottom: 1px solid rgba(124,58,237,0.2);
+    ` : `
+      max-width: none;
+      margin: 0;
+    `}
+  }
 `
 
-const SearchInput = styled.input`
+const SearchInput = styled.input<{ $expanded?: boolean }>`
   width: 100%;
-  padding: 9px 16px 9px 40px;
+  padding: 9px 16px 9px 44px;
   background: rgba(18, 18, 31, 0.8);
   border: 1px solid rgba(124, 58, 237, 0.2);
   border-radius: 999px;
   color: #e2e8f0;
   font-size: 14px;
   outline: none;
-  transition: all 0.2s;
+  transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
   font-family: 'Inter', sans-serif;
-  &:focus { border-color: rgba(124,58,237,0.5); box-shadow: 0 0 0 3px rgba(124,58,237,0.1); }
-  &::placeholder { color: rgba(148,163,184,0.6); }
+  &:focus { border-color: rgba(124,58,237,0.5); box-shadow: 0 0 0 3px rgba(124,58,237,0.12); }
+  &::placeholder { color: rgba(148,163,184,0.5); }
+
+  @media (max-width: 768px) {
+    ${p => p.$expanded ? `
+      height: 46px;
+      font-size: 16px;
+      padding: 0 56px 0 48px;
+      background: rgba(18,18,31,0.95);
+      border: 1px solid rgba(124,58,237,0.35);
+      border-radius: 14px;
+      letter-spacing: 0.01em;
+    ` : `
+      height: 38px;
+      font-size: 14px;
+      padding: 0 16px 0 36px;
+      background: rgba(18,18,31,0.8);
+      border: 1px solid rgba(124,58,237,0.2);
+      border-radius: 999px;
+    `}
+  }
 `
 
-const SearchIcon = styled.div`
+const MobileSearchClose = styled.button`
+  display: none;
+  @media (max-width: 768px) {
+    display: flex;
+    position: absolute;
+    right: 24px;
+    top: 50%;
+    transform: translateY(-50%);
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 1px solid rgba(124,58,237,0.2);
+    background: rgba(124,58,237,0.15);
+    color: rgba(148,163,184,0.8);
+    cursor: pointer;
+    &:hover { background: rgba(124,58,237,0.3); color: #fff; }
+  }
+`
+
+const SearchIcon = styled.div<{ $expanded?: boolean }>`
   position: absolute;
   left: 13px;
   top: 50%;
   transform: translateY(-50%);
   color: rgba(148,163,184,0.6);
+  display: flex;
+  align-items: center;
+  z-index: 1;
   pointer-events: none;
+  @media (max-width: 768px) {
+    left: ${p => p.$expanded ? '30px' : '12px'};
+  }
 `
 
 const SearchResults = styled.div`
@@ -213,6 +283,25 @@ const MobileLink = styled(Link)`
   &:hover { background: rgba(124,58,237,0.15); color: #fff; }
 `
 
+const Loading = styled.div`
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(124,58,237,0.4);
+  border-top-color: #7c3aed;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  @media (max-width: 768px) {
+    right: 70px;
+  }
+`
+
 // ── A-Z letters ───────────────────────────────────────────────────────
 const AZ_LETTERS = ['#', ...Array.from({ length: 26 }, (_, i) => String.fromCharCode(65 + i))]
 
@@ -225,8 +314,10 @@ export default function Header() {
   const [searching, setSearching] = useState(false)
   const [azOpen, setAzOpen] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [searchExpanded, setSearchExpanded] = useState(false)
   const azRef = useRef<HTMLDivElement>(null)
   const searchRef = useRef<HTMLDivElement>(null)
+  const searchInputRef = useRef<HTMLInputElement>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   // Close dropdowns on outside click
@@ -313,14 +404,26 @@ export default function Header() {
           </NavLinks>
 
           {/* Search */}
-          <SearchWrap ref={searchRef}>
-            <SearchIcon><Search size={16} /></SearchIcon>
+          <SearchWrap ref={searchRef} $expanded={searchExpanded}>
+            <SearchIcon $expanded={searchExpanded}>
+              <Search size={16} />
+            </SearchIcon>
+            {/* Input */}
             <SearchInput
+              ref={searchInputRef}
+              $expanded={searchExpanded}
               placeholder="Search games..."
               value={searchQ}
+              onFocus={() => setSearchExpanded(true)}
               onChange={e => setSearchQ(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter' && searchQ) { navigate(`/az-filter?q=${searchQ}`); setSearchQ('') } }}
+              onKeyDown={e => { if (e.key === 'Enter' && searchQ) { navigate(`/az-filter?q=${searchQ}`); setSearchQ(''); setSearchExpanded(false) } }}
             />
+            {/* Mobile close button */}
+            {searchExpanded && (
+              <MobileSearchClose onClick={() => { setSearchExpanded(false); setSearchQ(''); setSearchResults([]) }}>
+                <X size={14} />
+              </MobileSearchClose>
+            )}
             {searchResults.length > 0 && (
               <SearchResults>
                 {searchResults.map(g => (
@@ -336,9 +439,9 @@ export default function Header() {
               </SearchResults>
             )}
             {searching && (
-              <div style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)' }}>
+              <Loading>
                 <div style={{ width: 14, height: 14, border: '2px solid rgba(124,58,237,0.4)', borderTopColor: '#7c3aed', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
-              </div>
+              </Loading>
             )}
           </SearchWrap>
 

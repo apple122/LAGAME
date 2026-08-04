@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
-import styled from 'styled-components'
+import styled, { keyframes, css } from 'styled-components'
 
-import { Filter, Gamepad2, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react'
+import { Filter, Gamepad2, ChevronLeft, ChevronRight, Loader2, X, SlidersHorizontal, Check, ChevronUp } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import type { Game, Category } from '../../lib/supabase'
 import GameCard from '../../components/GameCard/GameCard'
@@ -53,6 +53,61 @@ const HeroSub = styled.p`
   color: rgba(148,163,184,0.8);
   max-width: 500px;
   margin: 0 auto;
+`
+
+const UptimeContainer = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 24px;
+  flex-wrap: wrap;
+  
+  @media (max-width: 768px) {
+    gap: 8px;
+    margin-top: 16px;
+  }
+`
+
+const UptimeBlock = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: rgba(18, 18, 31, 0.6);
+  border: 1px solid rgba(124, 58, 237, 0.3);
+  border-radius: 8px;
+  padding: 8px 16px;
+  min-width: 80px;
+
+  @media (max-width: 768px) {
+    min-width: 65px;
+    padding: 6px 10px;
+    border-radius: 6px;
+  }
+`
+
+const UptimeValue = styled.span`
+  font-family: 'Outfit', sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 0 10px rgba(124, 58, 237, 0.5);
+
+  @media (max-width: 768px) {
+    font-size: 16px;
+  }
+`
+
+const UptimeLabel = styled.span`
+  font-size: 10px;
+  color: rgba(148, 163, 184, 0.8);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+
+  @media (max-width: 768px) {
+    font-size: 9px;
+    letter-spacing: 0.5px;
+  }
 `
 
 const HeroStats = styled.div`
@@ -168,7 +223,198 @@ const SortSelect = styled.select`
   outline: none;
   cursor: pointer;
   &:focus { border-color: rgba(124,58,237,0.5); }
+  @media (max-width: 900px) { display: none; }
 `
+
+/* ─── Mobile Filter Button ─────────────────────────────── */
+const MobileFilterBtn = styled.button<{ $active?: boolean }>`
+  display: none;
+  @media (max-width: 900px) {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 16px;
+    background: ${p => p.$active ? 'rgba(124,58,237,0.3)' : 'rgba(18,18,31,0.8)'};
+    border: 1px solid ${p => p.$active ? 'rgba(124,58,237,0.6)' : 'rgba(124,58,237,0.2)'};
+    border-radius: 10px;
+    color: ${p => p.$active ? '#c4b5fd' : '#e2e8f0'};
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: 'Inter', sans-serif;
+  }
+`
+
+const FilterBadge = styled.span`
+  background: linear-gradient(135deg, #7c3aed, #06b6d4);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  border-radius: 999px;
+  padding: 1px 7px;
+  min-width: 18px;
+  text-align: center;
+`
+
+/* ─── Bottom Sheet Overlay ─────────────────────────────── */
+const slideUp = keyframes`
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+`
+const slideDown = keyframes`
+  from { transform: translateY(0); }
+  to   { transform: translateY(100%); }
+`
+const fadeIn = keyframes`
+  from { opacity: 0; }
+  to   { opacity: 1; }
+`
+const fadeOut = keyframes`
+  from { opacity: 1; }
+  to   { opacity: 0; }
+`
+
+const Backdrop = styled.div<{ $closing: boolean }>`
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  animation: ${p => p.$closing ? css`${fadeOut} 0.28s ease forwards` : css`${fadeIn} 0.2s ease forwards`};
+`
+
+const Sheet = styled.div<{ $closing: boolean }>`
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1001;
+  background: #0f0f1f;
+  border-top: 1px solid rgba(124,58,237,0.3);
+  border-radius: 20px 20px 0 0;
+  padding: 0 0 env(safe-area-inset-bottom, 16px);
+  max-height: 88vh;
+  overflow-y: auto;
+  animation: ${p => p.$closing ? css`${slideDown} 0.28s ease forwards` : css`${slideUp} 0.32s cubic-bezier(0.34,1.56,0.64,1) forwards`};
+`
+
+const SheetHandle = styled.div`
+  width: 36px;
+  height: 4px;
+  background: rgba(255,255,255,0.15);
+  border-radius: 2px;
+  margin: 14px auto 0;
+`
+
+const SheetHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid rgba(124,58,237,0.1);
+`
+
+const SheetTitle = styled.h3`
+  font-family: 'Outfit', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+`
+
+const SheetCloseBtn = styled.button`
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  border: 1px solid rgba(124,58,237,0.2);
+  background: rgba(124,58,237,0.1);
+  color: rgba(148,163,184,0.8);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s;
+  &:hover { background: rgba(124,58,237,0.2); color: #fff; }
+`
+
+const SheetSection = styled.div`
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(124,58,237,0.08);
+  &:last-child { border-bottom: none; }
+`
+
+const SheetSectionTitle = styled.p`
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: rgba(148,163,184,0.5);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+`
+
+const OptionChip = styled.button<{ $active: boolean }>`
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1px solid ${p => p.$active ? 'rgba(124,58,237,0.6)' : 'rgba(124,58,237,0.15)'};
+  background: ${p => p.$active ? 'rgba(124,58,237,0.25)' : 'rgba(18,18,31,0.8)'};
+  color: ${p => p.$active ? '#c4b5fd' : 'rgba(148,163,184,0.8)'};
+  font-size: 13px;
+  font-weight: ${p => p.$active ? 600 : 400};
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: 'Inter', sans-serif;
+  &:hover { border-color: rgba(124,58,237,0.4); color: #fff; }
+`
+
+const ChipsRow = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+`
+
+const MobileCatBtn = styled.button<{ $active: boolean }>`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 11px 14px;
+  border-radius: 10px;
+  border: 1px solid ${p => p.$active ? 'rgba(124,58,237,0.5)' : 'rgba(124,58,237,0.12)'};
+  background: ${p => p.$active ? 'rgba(124,58,237,0.2)' : 'rgba(18,18,31,0.6)'};
+  color: ${p => p.$active ? '#c4b5fd' : 'rgba(148,163,184,0.8)'};
+  font-size: 14px;
+  font-weight: ${p => p.$active ? 600 : 400};
+  cursor: pointer;
+  transition: all 0.12s;
+  font-family: 'Inter', sans-serif;
+  margin-bottom: 6px;
+  &:hover { background: rgba(124,58,237,0.15); color: #fff; }
+`
+
+const SheetApplyBtn = styled.button`
+  display: block;
+  width: calc(100% - 40px);
+  margin: 4px 20px 20px;
+  padding: 14px;
+  background: linear-gradient(135deg, #7c3aed, #06b6d4);
+  border: none;
+  border-radius: 12px;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  font-family: 'Outfit', sans-serif;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  &:hover { opacity: 0.9; }
+`
+
+/* ─── Rest of styles ────────────────────────────── */
 
 const ResultCount = styled.span`
   font-size: 13px;
@@ -223,20 +469,125 @@ const LoadingOverlay = styled.div`
   font-size: 14px;
 `
 
+const ScrollTopBtn = styled.button<{ $visible: boolean }>`
+  position: fixed;
+  bottom: 28px;
+  right: 24px;
+  z-index: 999;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid rgba(124,58,237,0.4);
+  background: rgba(18,18,31,0.9);
+  backdrop-filter: blur(12px);
+  color: #c4b5fd;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 24px rgba(124,58,237,0.3);
+  transition: opacity 0.3s, transform 0.3s, background 0.2s;
+  opacity: ${p => p.$visible ? 1 : 0};
+  transform: ${p => p.$visible ? 'translateY(0)' : 'translateY(16px)'};
+  pointer-events: ${p => p.$visible ? 'auto' : 'none'};
+  &:hover { background: rgba(124,58,237,0.4); color: #fff; transform: translateY(-2px); }
+  @media (max-width: 900px) { bottom: 25px; right: 16px; }
+`
 
+/* ─── Helper ─────────────────────────────────────── */
+const SORT_LABELS: Record<string, string> = {
+  created_at_desc: 'Newest First',
+  title_asc: 'A-Z',
+  view_count_desc: 'Most Viewed',
+}
+const PLATFORM_LABELS: Record<string, string> = {
+  all: '🌐 All',
+  windows: '🖥️ Windows',
+  macos: '🍏 macOS',
+}
 
 export default function HomePage() {
   const [games, setGames] = useState<Game[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [selectedCat, setSelectedCat] = useState<string | null>(null)
+  const [selectedPlatform, setSelectedPlatform] = useState<string>('all')
   const [sort, setSort] = useState('created_at_desc')
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
   const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>({})
   const [allGamesCount, setAllGamesCount] = useState(0)
+  const [uptime, setUptime] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 })
+
+  // Mobile sheet state
+  const [sheetOpen, setSheetOpen] = useState(false)
+  const [sheetClosing, setSheetClosing] = useState(false)
+  // Temp state inside sheet (applied on "Apply")
+  const [tmpCat, setTmpCat] = useState<string | null>(null)
+  const [tmpPlatform, setTmpPlatform] = useState('all')
+  const [tmpSort, setTmpSort] = useState('created_at_desc')
+
+  // Scroll-to-top visibility
+  const [showScrollTop, setShowScrollTop] = useState(false)
 
   const totalPages = Math.ceil(total / PAGE_SIZE)
+
+  // Count active filters for badge
+  const activeFilters = [
+    selectedCat !== null ? 1 : 0,
+    selectedPlatform !== 'all' ? 1 : 0,
+    sort !== 'created_at_desc' ? 1 : 0,
+  ].reduce((a, b) => a + b, 0)
+
+  const openSheet = () => {
+    setTmpCat(selectedCat)
+    setTmpPlatform(selectedPlatform)
+    setTmpSort(sort)
+    setSheetClosing(false)
+    setSheetOpen(true)
+  }
+
+  const closeSheet = () => {
+    setSheetClosing(true)
+    setTimeout(() => { setSheetOpen(false); setSheetClosing(false) }, 280)
+  }
+
+  const applySheet = () => {
+    setSelectedCat(tmpCat)
+    setSelectedPlatform(tmpPlatform)
+    setSort(tmpSort)
+    setPage(1)
+    closeSheet()
+  }
+
+  useEffect(() => {
+    const launchDate = new Date('2026-08-04T12:11:17').getTime()
+
+    const updateUptime = () => {
+      const now = new Date().getTime()
+      const distance = now - launchDate
+
+      if (distance > 0) {
+        setUptime({
+          days: Math.floor(distance / (1000 * 60 * 60 * 24)),
+          hours: Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
+          minutes: Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60)),
+          seconds: Math.floor((distance % (1000 * 60)) / 1000)
+        })
+      }
+    }
+
+    updateUptime()
+    const interval = setInterval(updateUptime, 1000)
+
+    return () => clearInterval(interval)
+  }, [])
+
+  useEffect(() => {
+    const onScroll = () => setShowScrollTop(window.scrollY > 400)
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
 
   useEffect(() => {
     const loadCategoriesAndCounts = async () => {
@@ -244,23 +595,23 @@ export default function HomePage() {
         supabase.from('categories').select('*').order('name'),
         supabase.from('games').select('category_id, category_ids')
       ])
-      
+
       setCategories(catsRes.data || [])
-      
+
       const counts: Record<string, number> = {}
       const allGames = (gamesRes.data as any[]) || []
       setAllGamesCount(allGames.length)
-      
+
       allGames.forEach(g => {
         const catIds = new Set<string>()
         if (g.category_id) catIds.add(g.category_id)
         if (g.category_ids) g.category_ids.forEach((id: string) => catIds.add(id))
-        
+
         catIds.forEach(id => {
           counts[id] = (counts[id] || 0) + 1
         })
       })
-      
+
       setCategoryCounts(counts)
     }
     loadCategoriesAndCounts()
@@ -268,7 +619,7 @@ export default function HomePage() {
 
   useEffect(() => {
     fetchGames()
-  }, [selectedCat, sort, page])
+  }, [selectedCat, selectedPlatform, sort, page])
 
   const fetchGames = async () => {
     setLoading(true)
@@ -283,6 +634,10 @@ export default function HomePage() {
       .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1)
 
     if (selectedCat) q = q.or(`category_id.eq.${selectedCat},category_ids.cs.{${selectedCat}}`)
+
+    if (selectedPlatform !== 'all') {
+      q = q.contains('system_requirements', { platforms: [selectedPlatform] })
+    }
 
     const { data, count } = await q
     setGames((data as any) || [])
@@ -299,6 +654,24 @@ export default function HomePage() {
           Game Hub
         </HeroTitle>
         <HeroSub>Download your favorite PC games — free, fast, and easy.</HeroSub>
+        <UptimeContainer>
+          <UptimeBlock>
+            <UptimeValue>{uptime.days}</UptimeValue>
+            <UptimeLabel>Days</UptimeLabel>
+          </UptimeBlock>
+          <UptimeBlock>
+            <UptimeValue>{uptime.hours}</UptimeValue>
+            <UptimeLabel>Hours</UptimeLabel>
+          </UptimeBlock>
+          <UptimeBlock>
+            <UptimeValue>{uptime.minutes}</UptimeValue>
+            <UptimeLabel>Minutes</UptimeLabel>
+          </UptimeBlock>
+          <UptimeBlock>
+            <UptimeValue>{uptime.seconds}</UptimeValue>
+            <UptimeLabel>Seconds</UptimeLabel>
+          </UptimeBlock>
+        </UptimeContainer>
         <HeroStats>
           <Stat><StatNum>{total}+</StatNum><StatLabel>Games</StatLabel></Stat>
           <Stat><StatNum>{categories.length}</StatNum><StatLabel>Categories</StatLabel></Stat>
@@ -307,7 +680,7 @@ export default function HomePage() {
       </Hero>
 
       <PageWrap>
-        {/* Sidebar */}
+        {/* Sidebar (desktop only) */}
         <Sidebar>
           <SidebarCard>
             <SidebarTitle><Filter size={12} /> Categories</SidebarTitle>
@@ -337,11 +710,26 @@ export default function HomePage() {
               <Gamepad2 size={18} style={{ color: '#7c3aed' }} />
               <ResultCount>{total} games found</ResultCount>
             </ToolbarLeft>
-            <SortSelect value={sort} onChange={e => { setSort(e.target.value); setPage(1) }}>
-              <option value="created_at_desc">Newest First</option>
-              <option value="title_asc">A-Z</option>
-              <option value="view_count_desc">Most Viewed</option>
-            </SortSelect>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+              {/* Desktop dropdowns */}
+              <SortSelect value={selectedPlatform} onChange={e => { setSelectedPlatform(e.target.value); setPage(1) }}>
+                <option value="all">🌐 All Platforms</option>
+                <option value="windows">🖥️ Windows</option>
+                <option value="macos">🍏 macOS</option>
+              </SortSelect>
+              <SortSelect value={sort} onChange={e => { setSort(e.target.value); setPage(1) }}>
+                <option value="created_at_desc">Newest First</option>
+                <option value="title_asc">A-Z</option>
+                <option value="view_count_desc">Most Viewed</option>
+              </SortSelect>
+
+              {/* Mobile filter button */}
+              <MobileFilterBtn $active={activeFilters > 0} onClick={openSheet}>
+                <SlidersHorizontal size={15} />
+                Filter
+                {activeFilters > 0 && <FilterBadge>{activeFilters}</FilterBadge>}
+              </MobileFilterBtn>
+            </div>
           </Toolbar>
 
           {loading ? (
@@ -374,6 +762,81 @@ export default function HomePage() {
           )}
         </Content>
       </PageWrap>
+
+      {/* Mobile Bottom Sheet */}
+      {sheetOpen && (
+        <>
+          <Backdrop $closing={sheetClosing} onClick={closeSheet} />
+          <Sheet $closing={sheetClosing}>
+            <SheetHandle />
+            <SheetHeader>
+              <SheetTitle><SlidersHorizontal size={16} style={{ color: '#7c3aed' }} /> Filters</SheetTitle>
+              <SheetCloseBtn onClick={closeSheet}><X size={15} /></SheetCloseBtn>
+            </SheetHeader>
+
+            {/* Platform */}
+            <SheetSection>
+              <SheetSectionTitle>🌐 Platform</SheetSectionTitle>
+              <ChipsRow>
+                {(['all', 'windows', 'macos'] as const).map(p => (
+                  <OptionChip key={p} $active={tmpPlatform === p} onClick={() => setTmpPlatform(p)}>
+                    {PLATFORM_LABELS[p]}
+                    {tmpPlatform === p && <Check size={12} />}
+                  </OptionChip>
+                ))}
+              </ChipsRow>
+            </SheetSection>
+
+            {/* Sort */}
+            <SheetSection>
+              <SheetSectionTitle>⬆️ Sort By</SheetSectionTitle>
+              <ChipsRow>
+                {Object.entries(SORT_LABELS).map(([val, label]) => (
+                  <OptionChip key={val} $active={tmpSort === val} onClick={() => setTmpSort(val)}>
+                    {label}
+                    {tmpSort === val && <Check size={12} />}
+                  </OptionChip>
+                ))}
+              </ChipsRow>
+            </SheetSection>
+
+            {/* Categories */}
+            <SheetSection>
+              <SheetSectionTitle><Filter size={11} /> Categories</SheetSectionTitle>
+              <MobileCatBtn $active={tmpCat === null} onClick={() => setTmpCat(null)}>
+                All Games
+                <span style={{ fontSize: 11, background: tmpCat === null ? 'rgba(124,58,237,0.4)' : 'rgba(124,58,237,0.2)', padding: '2px 7px', borderRadius: 6 }}>
+                  {allGamesCount}
+                </span>
+              </MobileCatBtn>
+              {categories.map(cat => (
+                <MobileCatBtn key={cat.id} $active={tmpCat === cat.id} onClick={() => setTmpCat(cat.id)}>
+                  {cat.name}
+                  {categoryCounts[cat.id] > 0 && (
+                    <span style={{ fontSize: 11, background: tmpCat === cat.id ? 'rgba(124,58,237,0.4)' : 'rgba(124,58,237,0.2)', padding: '2px 7px', borderRadius: 6 }}>
+                      {categoryCounts[cat.id]}
+                    </span>
+                  )}
+                </MobileCatBtn>
+              ))}
+            </SheetSection>
+
+            <SheetApplyBtn onClick={applySheet}>
+              Apply Filters {activeFilters > 0 ? `(${activeFilters} active)` : ''}
+            </SheetApplyBtn>
+          </Sheet>
+        </>
+      )}
+
+      {/* Scroll to top button */}
+      <ScrollTopBtn
+        $visible={showScrollTop}
+        onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+        aria-label="Scroll to top"
+        title="Back to top"
+      >
+        <ChevronUp size={20} />
+      </ScrollTopBtn>
     </>
   )
 }

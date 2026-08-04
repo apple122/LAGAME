@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import styled from 'styled-components'
-import { ArrowLeft, Download, Monitor, Cpu, ExternalLink, Loader2, Play, AlignLeft } from 'lucide-react'
+import { ArrowLeft, Download, Monitor, Cpu, ExternalLink, Loader2, Play, AlignLeft, Apple } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import type { Game, DownloadLink, Category } from '../../lib/supabase'
 import { useAdSettings } from '../../context/AdSettingsContext'
@@ -234,13 +234,59 @@ export default function GameDetailPage() {
           {links.length === 0 ? (
             <p style={{ fontSize: 13, color: 'rgba(148,163,184,0.5)' }}>No download links added yet.</p>
           ) : (
-            links.map(link => (
-              <DownloadBtn key={link.id} onClick={() => handleDownload(link)}>
-                <span style={{ fontSize: 20 }}>{CLOUD_ICONS[link.cloud_name] || CLOUD_ICONS.default}</span>
-                <CloudName>{link.cloud_name}</CloudName>
-                <DownArrow><ExternalLink size={12} /> Download</DownArrow>
-              </DownloadBtn>
-            ))
+            (() => {
+              const winLinks: DownloadLink[] = []
+              const macLinks: DownloadLink[] = []
+              
+              links.forEach(link => {
+                let platform = 'windows';
+                let cloud_name = link.cloud_name;
+                if (cloud_name.startsWith('[windows] ')) {
+                  platform = 'windows';
+                  cloud_name = cloud_name.replace('[windows] ', '');
+                } else if (cloud_name.startsWith('[macos] ')) {
+                  platform = 'macos';
+                  cloud_name = cloud_name.replace('[macos] ', '');
+                }
+                
+                const parsedLink = { ...link, cloud_name };
+                if (platform === 'windows') winLinks.push(parsedLink);
+                else macLinks.push(parsedLink);
+              });
+
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                  {winLinks.length > 0 && (
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: 'rgba(148,163,184,0.7)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <Monitor size={14} /> Windows
+                      </div>
+                      {winLinks.map(link => (
+                        <DownloadBtn key={link.id} onClick={() => handleDownload(link)}>
+                          <span style={{ fontSize: 20 }}>{CLOUD_ICONS[link.cloud_name] || CLOUD_ICONS.default}</span>
+                          <CloudName>{link.cloud_name}</CloudName>
+                          <DownArrow><ExternalLink size={12} /> Download</DownArrow>
+                        </DownloadBtn>
+                      ))}
+                    </div>
+                  )}
+                  {macLinks.length > 0 && (
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: 'rgba(148,163,184,0.7)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <Apple size={14} /> macOS
+                      </div>
+                      {macLinks.map(link => (
+                        <DownloadBtn key={link.id} onClick={() => handleDownload(link)}>
+                          <span style={{ fontSize: 20 }}>{CLOUD_ICONS[link.cloud_name] || CLOUD_ICONS.default}</span>
+                          <CloudName>{link.cloud_name}</CloudName>
+                          <DownArrow><ExternalLink size={12} /> Download</DownArrow>
+                        </DownloadBtn>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            })()
           )}
         </Info>
       </Hero>
