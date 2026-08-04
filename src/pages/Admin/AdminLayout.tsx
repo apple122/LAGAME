@@ -83,7 +83,9 @@ const navItems = [
   { to: '/ap-admin/support', icon: <MessageSquare size={16} />, label: 'Support Chat' },
   { to: '/ap-admin/games', icon: <Gamepad2 size={16} />, label: 'Manage Games' },
   { to: '/ap-admin/categories', icon: <Tags size={16} />, label: 'Categories' },
+  { to: '/ap-admin/comments', icon: <MessageSquare size={16} />, label: 'Comments' },
   { to: '/ap-admin/api-keys', icon: <Key size={16} />, label: 'API Keys' },
+  { to: '/ap-admin/top-ranking', icon: <Megaphone size={16} />, label: 'AI Top Ranking' },
   { to: '/ap-admin/ads', icon: <Megaphone size={16} />, label: 'Ad Settings' },
 ]
 

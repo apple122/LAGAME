@@ -7,4 +7,13 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
+  server: {
+    proxy: {
+      '/steamspy': {
+        target: 'https://steamspy.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/steamspy/, '')
+      }
+    }
+  }
 })

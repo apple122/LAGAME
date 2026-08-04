@@ -6,6 +6,7 @@ import { supabase } from '../../lib/supabase'
 import type { Game, DownloadLink, Category } from '../../lib/supabase'
 import { useAdSettings } from '../../context/AdSettingsContext'
 import { trackGameView } from '../../lib/analytics'
+import CommentSection from '../../components/CommentSection/CommentSection'
 
 const CLOUD_ICONS: Record<string, string> = {
   'Google Drive': '🟢',
@@ -415,6 +416,7 @@ export default function GameDetailPage() {
           >✕ Close</button>
         </Lightbox>
       )}
-    </Page>
+        <CommentSection type="game" gameId={game.id} />
+      </Page>
   )
 }

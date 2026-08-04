@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import styled, { keyframes } from 'styled-components'
-import { Search, Menu, X, ChevronDown, Trophy, AlignLeft } from 'lucide-react'
+import { Search, Menu, X, ChevronDown, Trophy, AlignLeft, MessageSquare } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import type { Game } from '../../lib/supabase'
 
@@ -401,6 +401,11 @@ export default function Header() {
               <Trophy size={15} />
               Top PC Games
             </NavLink>
+
+            <NavLink to="/comments" $active={isActive('/comments')}>
+              <MessageSquare size={15} />
+              Guestbook
+            </NavLink>
           </NavLinks>
 
           {/* Search */}
@@ -457,6 +462,7 @@ export default function Header() {
         <MobileLink to="/">🏠 Home</MobileLink>
         <MobileLink to="/az-filter">🔤 A-Z Filter</MobileLink>
         <MobileLink to="/top-games">🏆 Top PC Games</MobileLink>
+        <MobileLink to="/comments">💬 Guestbook</MobileLink>
         <div style={{ padding: '8px 0' }}>
           <p style={{ fontSize: 12, color: 'rgba(148,163,184,0.5)', padding: '8px 16px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Browse A-Z</p>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, padding: '0 16px' }}>

@@ -38,15 +38,33 @@ export default function TopGamesPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    supabase
-      .from('games')
-      .select('*, category:categories(id,name,slug), download_links(id)')
-      .order('view_count', { ascending: false })
-      .limit(50)
-      .then(({ data }) => {
-        setGames((data as any) || [])
+    const fetchGames = async () => {
+      // 1. Try fetching AI Ranked games
+      const { data: aiRanked } = await supabase
+        .from('games')
+        .select('*, category:categories(id,name,slug), download_links(id)')
+        .not('ai_rank', 'is', null)
+        .order('ai_rank', { ascending: true })
+        .limit(10)
+      
+      if (aiRanked && (aiRanked as any[]).length > 0) {
+        setGames((aiRanked as any) || [])
         setLoading(false)
-      })
+        return
+      }
+
+      // 2. Fallback to view_count
+      const { data: popular } = await supabase
+        .from('games')
+        .select('*, category:categories(id,name,slug), download_links(id)')
+        .order('view_count', { ascending: false })
+        .limit(50)
+      
+      setGames((popular as any) || [])
+      setLoading(false)
+    }
+
+    fetchGames()
   }, [])
 
   return (
@@ -54,7 +72,7 @@ export default function TopGamesPage() {
       <Banner>
         <div style={{ fontSize: 48, marginBottom: 12 }}>🏆</div>
         <BannerTitle>Top PC Games</BannerTitle>
-        <p style={{ fontSize: 15, color: 'rgba(148,163,184,0.7)' }}>Most-viewed games by our community</p>
+        <p style={{ fontSize: 15, color: 'rgba(148,163,184,0.7)' }}>The 10 Best Games Selected by AI</p>
       </Banner>
 
       {loading ? (

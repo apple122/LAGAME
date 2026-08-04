@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import styled, { keyframes, css } from 'styled-components'
-import { X, Send, Bot, ChevronDown, AlertCircle, MessageCircle, Headphones, Paperclip, File } from 'lucide-react'
+import { X, Send, Bot, ChevronDown, AlertCircle, MessageCircle, Headphones, Paperclip, File, Trash2 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { sendChatMessage } from '../../lib/chatService'
 import type { ChatMessage } from '../../lib/chatService'
@@ -78,11 +78,15 @@ const StatusDot = styled.div<{ $support?: boolean }>`
     animation: ${pulse} 2s ease-in-out infinite; flex-shrink: 0;
   }
 `
-const CloseBtn = styled.button`
+const HeaderActions = styled.div`display: flex; gap: 6px;`
+const ActionBtn = styled.button<{ $danger?: boolean }>`
   width: 30px; height: 30px; border-radius: 8px; border: none;
   background: rgba(255,255,255,0.08); color: rgba(148,163,184,0.8);
   display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.15s;
-  &:hover { background: rgba(239,68,68,0.2); color: #ef4444; }
+  &:hover { 
+    background: ${p => p.$danger ? 'rgba(239,68,68,0.2)' : 'rgba(255,255,255,0.15)'}; 
+    color: ${p => p.$danger ? '#ef4444' : '#fff'}; 
+  }
 `
 
 // ── Mode Tabs ────────────────────────────────────────────────────
@@ -106,7 +110,7 @@ const Messages = styled.div`
   &::-webkit-scrollbar-thumb { background: rgba(124,58,237,0.3); border-radius: 2px; }
 `
 const Bubble = styled.div<{ $role: 'user' | 'assistant' | 'admin' | 'error' | 'system' }>`
-  max-width: 88%; padding: 10px 14px; font-size: 13.5px; line-height: 1.6;
+  padding: 10px 14px; font-size: 13.5px; line-height: 1.6;
   animation: ${fadeIn} 0.25s ease; white-space: pre-wrap; word-break: break-word;
   border-radius: ${p => p.$role === 'user' ? '16px 16px 4px 16px' : '16px 16px 16px 4px'};
   align-self: ${p => p.$role === 'user' ? 'flex-end' : 'flex-start'};
@@ -114,6 +118,20 @@ const Bubble = styled.div<{ $role: 'user' | 'assistant' | 'admin' | 'error' | 's
   ${p => (p.$role === 'assistant' || p.$role === 'admin') && css`background: rgba(255,255,255,0.06); border: 1px solid rgba(124,58,237,0.15); color: #e2e8f0;`}
   ${p => p.$role === 'error' && css`background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2); color: #fca5a5; display:flex; align-items:flex-start; gap:8px;`}
   ${p => p.$role === 'system' && css`background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.2); color: #fcd34d; font-size:12px; align-self:center; text-align:center; border-radius:8px;`}
+`
+const BubbleWrap = styled.div<{ $isUser: boolean }>`
+  display: flex; align-items: center; gap: 6px; max-width: 88%;
+  align-self: ${p => p.$isUser ? 'flex-end' : 'flex-start'};
+  flex-direction: ${p => p.$isUser ? 'row-reverse' : 'row'};
+  
+  &:hover .msg-delete { opacity: 1; pointer-events: auto; }
+`
+const MsgDeleteBtn = styled.button`
+  opacity: 0; pointer-events: none; flex-shrink: 0;
+  width: 26px; height: 26px; border-radius: 6px; border: none;
+  background: rgba(255,255,255,0.05); color: rgba(148,163,184,0.6);
+  display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.15s;
+  &:hover { background: rgba(239,68,68,0.15); color: #ef4444; }
 `
 const RoleLabel = styled.div<{ $admin?: boolean }>`
   font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
@@ -396,6 +414,17 @@ export default function ChatBot() {
 
   const autoResize = (el: HTMLTextAreaElement) => { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 100) + 'px' }
 
+  const deleteAiMessage = (index: number) => {
+    if (!confirm('ต้องการลบข้อความนี้ใช่หรือไม่?')) return
+    setAiMessages(prev => prev.filter((_, i) => i !== index))
+  }
+
+  const deleteSupportMessage = async (id: string) => {
+    if (!confirm('ต้องการลบข้อความนี้ใช่หรือไม่?')) return
+    setSupportMessages(prev => prev.filter(m => m.id !== id))
+    await supabase.from('support_messages').delete().eq('id', id)
+  }
+
   const resetSupport = () => {
     if (!confirm('ต้องการเริ่มการสนทนาใหม่?')) return
     localStorage.removeItem(SUPPORT_TOKEN_KEY)
@@ -417,7 +446,11 @@ export default function ChatBot() {
                 {mode === 'support' ? 'ส่งข้อความถึง Admin' : 'Online · LAPACK Game Hub'}
               </StatusDot>
             </HeaderInfo>
-            <CloseBtn onClick={() => setOpen(false)} title="Close"><X size={15} /></CloseBtn>
+            <HeaderActions>
+              <ActionBtn onClick={() => setOpen(false)} title="ปิดหน้าต่าง" $danger>
+                <X size={15} />
+              </ActionBtn>
+            </HeaderActions>
           </Header>
 
           {/* Mode Tabs */}
@@ -446,10 +479,17 @@ export default function ChatBot() {
                   </WelcomeCard>
                 )}
                 {aiMessages.map((msg, i) => (
-                  <Bubble key={i} $role={(msg as any)._isError ? 'error' : msg.role}>
-                    {(msg as any)._isError && <AlertCircle size={14} style={{ flexShrink: 0, marginTop: 2 }} />}
-                    {msg.content}
-                  </Bubble>
+                  <BubbleWrap key={i} $isUser={msg.role === 'user'}>
+                    <Bubble $role={(msg as any)._isError ? 'error' : msg.role}>
+                      {(msg as any)._isError && <AlertCircle size={14} style={{ flexShrink: 0, marginTop: 2 }} />}
+                      {msg.content}
+                    </Bubble>
+                    {msg.role === 'user' && (
+                      <MsgDeleteBtn className="msg-delete" onClick={() => deleteAiMessage(i)} title="ลบข้อความ">
+                        <Trash2 size={13} />
+                      </MsgDeleteBtn>
+                    )}
+                  </BubbleWrap>
                 ))}
                 {aiLoading && <TypingBubble $role="assistant"><Dot $delay={0} /><Dot $delay={200} /><Dot $delay={400} /></TypingBubble>}
                 <div ref={messagesEndRef} />
@@ -495,17 +535,24 @@ export default function ChatBot() {
                 {supportMessages.map((msg) => (
                   <div key={msg.id} style={{ display: 'flex', flexDirection: 'column', alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
                     {msg.role === 'admin' && <RoleLabel $admin>Admin</RoleLabel>}
-                    <Bubble $role={msg.role}>
-                      {msg.content}
-                      {msg.attachment_url && msg.attachment_type === 'image' && (
-                        <AttachmentImage src={msg.attachment_url} onClick={() => window.open(msg.attachment_url, '_blank')} />
+                    <BubbleWrap $isUser={msg.role === 'user'}>
+                      <Bubble $role={msg.role}>
+                        {msg.content}
+                        {msg.attachment_url && msg.attachment_type === 'image' && (
+                          <AttachmentImage src={msg.attachment_url} onClick={() => window.open(msg.attachment_url, '_blank')} />
+                        )}
+                        {msg.attachment_url && msg.attachment_type === 'file' && (
+                          <AttachmentFile href={msg.attachment_url} target="_blank" rel="noopener noreferrer">
+                            <File size={14} /> ดาวน์โหลดไฟล์
+                          </AttachmentFile>
+                        )}
+                      </Bubble>
+                      {msg.role === 'user' && (
+                        <MsgDeleteBtn className="msg-delete" onClick={() => deleteSupportMessage(msg.id)} title="ลบข้อความ">
+                          <Trash2 size={13} />
+                        </MsgDeleteBtn>
                       )}
-                      {msg.attachment_url && msg.attachment_type === 'file' && (
-                        <AttachmentFile href={msg.attachment_url} target="_blank" rel="noopener noreferrer">
-                          <File size={14} /> ดาวน์โหลดไฟล์
-                        </AttachmentFile>
-                      )}
-                    </Bubble>
+                    </BubbleWrap>
                   </div>
                 ))}
                 {supportPhase === 'chatting' && <div ref={messagesEndRef} />}
