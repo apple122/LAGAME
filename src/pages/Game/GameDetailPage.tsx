@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import styled from 'styled-components'
-import { ArrowLeft, Download, Monitor, Cpu, ExternalLink, Loader2, Play, AlignLeft, Apple } from 'lucide-react'
+import { ArrowLeft, Download, Monitor, Cpu, ExternalLink, Loader2, Play, AlignLeft, Apple, ChevronLeft, ChevronRight } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import type { Game, DownloadLink, Category } from '../../lib/supabase'
 import { useAdSettings } from '../../context/AdSettingsContext'
@@ -136,6 +136,23 @@ const Lightbox = styled.div`
   @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 `
 
+const LightboxNav = styled.button`
+  position: absolute; top: 50%; transform: translateY(-50%);
+  width: 52px; height: 52px; border-radius: 50%;
+  background: rgba(255,255,255,0.12); backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,255,255,0.2); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: background 0.2s, transform 0.2s;
+  &:hover { background: rgba(124,58,237,0.6); transform: translateY(-50%) scale(1.1); }
+  &:disabled { opacity: 0.25; cursor: default; }
+`
+const LightboxCounter = styled.div`
+  position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+  background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
+  border: 1px solid rgba(255,255,255,0.1); border-radius: 20px;
+  padding: 5px 14px; font-size: 13px; color: rgba(255,255,255,0.8);
+`
+
 const LoadingPage = styled.div`
   display: flex; align-items: center; justify-content: center;
   min-height: 60vh; color: rgba(148,163,184,0.6); gap: 12px; font-size: 14px;
@@ -149,7 +166,7 @@ export default function GameDetailPage() {
   const [gameCategories, setGameCategories] = useState<Category[]>([])
   const [links, setLinks] = useState<DownloadLink[]>([])
   const [loading, setLoading] = useState(true)
-  const [lightbox, setLightbox] = useState<string | null>(null)
+  const [lightbox, setLightbox] = useState<number | null>(null)
 
   useEffect(() => {
     if (!slug) return
@@ -184,6 +201,19 @@ export default function GameDetailPage() {
     }
     fetch()
   }, [slug])
+
+  // Keyboard navigation for lightbox
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (lightbox === null || !game?.screenshots?.length) return
+    if (e.key === 'ArrowRight') setLightbox(i => Math.min((i ?? 0) + 1, game.screenshots.length - 1))
+    if (e.key === 'ArrowLeft') setLightbox(i => Math.max((i ?? 0) - 1, 0))
+    if (e.key === 'Escape') setLightbox(null)
+  }, [lightbox, game])
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [handleKeyDown])
 
   const handleDownload = (link: DownloadLink) => {
     if (adSettings?.is_active && adSettings.ad_url) {
@@ -312,7 +342,7 @@ export default function GameDetailPage() {
           <GalleryWrap>
             <GalleryScroll>
               {game.screenshots.map((src, i) => (
-                <Screenshot key={i} src={src} alt={`Screenshot ${i + 1}`} onClick={() => setLightbox(src)} />
+                <Screenshot key={i} src={src} alt={`Screenshot ${i + 1}`} onClick={() => setLightbox(i)} />
               ))}
             </GalleryScroll>
           </GalleryWrap>
@@ -351,10 +381,37 @@ export default function GameDetailPage() {
       )}
 
       {/* Lightbox */}
-      {lightbox && (
+      {lightbox !== null && game.screenshots?.length > 0 && (
         <Lightbox onClick={() => setLightbox(null)}>
-          <img src={lightbox} alt="Screenshot" style={{ maxWidth: '90vw', maxHeight: '85vh', borderRadius: 12, boxShadow: '0 0 60px rgba(0,0,0,0.8)' }} onClick={e => e.stopPropagation()} />
-          <button onClick={() => setLightbox(null)} style={{ position: 'absolute', top: 20, right: 20, background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', borderRadius: 8, padding: '8px 14px', cursor: 'pointer', fontSize: 14 }}>✕ Close</button>
+          <img
+            src={game.screenshots[lightbox]}
+            alt={`Screenshot ${lightbox + 1}`}
+            style={{ maxWidth: '90vw', maxHeight: '82vh', borderRadius: 12, boxShadow: '0 0 60px rgba(0,0,0,0.8)', display: 'block' }}
+            onClick={e => e.stopPropagation()}
+          />
+          {/* Prev */}
+          <LightboxNav
+            style={{ left: 16 }}
+            disabled={lightbox === 0}
+            onClick={e => { e.stopPropagation(); setLightbox(i => Math.max((i ?? 1) - 1, 0)) }}
+          >
+            <ChevronLeft size={26} />
+          </LightboxNav>
+          {/* Next */}
+          <LightboxNav
+            style={{ right: 16 }}
+            disabled={lightbox === game.screenshots.length - 1}
+            onClick={e => { e.stopPropagation(); setLightbox(i => Math.min((i ?? 0) + 1, game.screenshots.length - 1)) }}
+          >
+            <ChevronRight size={26} />
+          </LightboxNav>
+          {/* Counter */}
+          <LightboxCounter>{lightbox + 1} / {game.screenshots.length}</LightboxCounter>
+          {/* Close */}
+          <button
+            onClick={() => setLightbox(null)}
+            style={{ position: 'absolute', top: 20, right: 20, background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', borderRadius: 8, padding: '8px 14px', cursor: 'pointer', fontSize: 14, backdropFilter: 'blur(4px)' }}
+          >✕ Close</button>
         </Lightbox>
       )}
     </Page>

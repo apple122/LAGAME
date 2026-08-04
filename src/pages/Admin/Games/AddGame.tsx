@@ -8,7 +8,7 @@ import MultiSelectCategory from '../../../components/MultiSelectCategory'
 import { uploadImage } from '../../../lib/supabase'
 import { generateGameData } from '../../../lib/gemini'
 
-const CLOUD_OPTIONS = ['Google Drive', 'MEGA', 'MediaFire', 'OneDrive', 'Dropbox', 'Zippyshare', 'Pixeldrain', 'DataNodes', 'Gofile', 'Other']
+const CLOUD_OPTIONS = ['1fichier', 'Buzzheavier', 'DataNodes', 'Dropbox', 'Gofile', 'Google Drive', 'Hitfile', 'MEGA', 'MediaFire', 'Multiup', 'OneDrive', 'Pixeldrain', 'Turbobit', 'Zippyshare', 'Other']
 
 const Page = styled.div`
   max-width: 900px;
@@ -203,7 +203,8 @@ export default function AddGame() {
   const [aiQuery, setAiQuery] = useState('')
   const [aiLoading, setAiLoading] = useState(false)
   const [aiError, setAiError] = useState('')
-  const [aiPreview, setAiPreview] = useState<any>(null)
+  const [aiPreview, setAiPreview] = useState<any | null>(null)
+  const [isApplying, setIsApplying] = useState(false)
   const [selectedModel, setSelectedModel] = useState('gemini-flash-latest')
   // Form fields
   const [title, setTitle] = useState('')
@@ -251,8 +252,12 @@ export default function AddGame() {
   "file_size": "estimated game size e.g. 50 GB, 120 GB, 500 MB (just the number and unit)",
   "video_url": "YouTube trailer URL if available (optional)",
   "minimum_requirements": "OS: Windows 10 64-bit\nCPU: Intel Core i5-8400\nRAM: 8 GB\nGPU: NVIDIA GTX 970",
-  "recommended_requirements": "OS: Windows 10/11 64-bit\nCPU: Intel Core i7-8700K\nRAM: 16 GB\nGPU: NVIDIA RTX 2080"
+  "recommended_requirements": "OS: Windows 10/11 64-bit\nCPU: Intel Core i7-8700K\nRAM: 16 GB\nGPU: NVIDIA RTX 2080",
+  "steam_app_id": 12120, // The numeric Steam App ID for the game (crucial for fetching real images, provide it if the game is on Steam)
+  "cover_image": "URL to the official game cover",
+  "screenshots": ["URL1", "URL2", "URL3"] (list of in-game screenshot URLs)
 }
+IMPORTANT: Please try your best to provide the accurate 'steam_app_id' if the game exists on Steam.
 Return ONLY the raw JSON object. No markdown, no code blocks, no explanation.`
 
       const data = await generateGameData(prompt, selectedModel)
@@ -266,6 +271,8 @@ Return ONLY the raw JSON object. No markdown, no code blocks, no explanation.`
 
   const handleAiApply = async () => {
     if (!aiPreview) return
+    setIsApplying(true)
+    
     setTitle(aiPreview.title || title)
     if (aiPreview.title) setSlug(slugify(aiPreview.title))
     if (aiPreview.description) setDescription(aiPreview.description)
@@ -273,6 +280,52 @@ Return ONLY the raw JSON object. No markdown, no code blocks, no explanation.`
     if (aiPreview.video_url) setVideoUrl(aiPreview.video_url)
     if (aiPreview.minimum_requirements) setMinAbout(aiPreview.minimum_requirements)
     if (aiPreview.recommended_requirements) setRecAbout(aiPreview.recommended_requirements)
+    
+    // Fetch real images from Steam if steam_app_id is provided
+    let steamCover = ''
+    let steamScreenshots: string[] = []
+    
+    if (aiPreview.steam_app_id) {
+      const appId = aiPreview.steam_app_id
+      // Use vertical cover image (portrait format used in game stores)
+      steamCover = `https://steamcdn-a.akamaihd.net/steam/apps/${appId}/library_600x900.jpg`
+      try {
+        // Fetch screenshots from Steam Store API via CORS proxy
+        const steamUrl = `https://store.steampowered.com/api/appdetails?appids=${appId}&filters=screenshots`
+        const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(steamUrl)}`)
+        const data = await res.json()
+        const steamData = JSON.parse(data.contents)
+        const appData = steamData[appId]?.data
+        if (appData?.screenshots && appData.screenshots.length > 0) {
+          steamScreenshots = appData.screenshots.slice(0, 10).map((s: any) => s.path_full)
+        }
+        // Fallback: if no proxy screenshots, try Steam CDN direct pattern
+        if (steamScreenshots.length === 0) {
+          // Steam CDN screenshot pattern for top game screenshots
+          for (let i = 1; i <= 8; i++) {
+            steamScreenshots.push(`https://cdn.akamai.steamstatic.com/steam/apps/${appId}/ss_${i}.jpg`)
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch Steam screenshots:', err)
+        // Still try direct CDN pattern as last resort
+        for (let i = 1; i <= 8; i++) {
+          steamScreenshots.push(`https://cdn.akamai.steamstatic.com/steam/apps/${appId}/ss_${i}.jpg`)
+        }
+      }
+    }
+
+    if (steamCover) {
+      setCoverImage(steamCover)
+    } else if (aiPreview.cover_image) {
+      setCoverImage(aiPreview.cover_image)
+    }
+
+    if (steamScreenshots.length > 0) {
+      setScreenshots(steamScreenshots)
+    } else if (aiPreview.screenshots && Array.isArray(aiPreview.screenshots) && aiPreview.screenshots.length > 0) {
+      setScreenshots(aiPreview.screenshots)
+    }
 
     // Auto-match or create categories from genres
     if (aiPreview.genres && aiPreview.genres.length > 0) {
@@ -293,6 +346,8 @@ Return ONLY the raw JSON object. No markdown, no code blocks, no explanation.`
       setCategories(updatedCats.sort((a, b) => a.name.localeCompare(b.name)))
       setCategoryIds(newCatIds)
     }
+    
+    setIsApplying(false)
     setAiPreview(null)
   }
 
@@ -490,9 +545,11 @@ Return ONLY the raw JSON object. No markdown, no code blocks, no explanation.`
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   <button
                     onClick={handleAiApply}
-                    style={{ padding: '6px 16px', background: 'linear-gradient(135deg, #7c3aed, #a855f7)', border: 'none', borderRadius: 8, color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, flex: 1, justifyContent: 'center' }}
+                    disabled={isApplying}
+                    style={{ padding: '6px 16px', background: 'linear-gradient(135deg, #7c3aed, #a855f7)', border: 'none', borderRadius: 8, color: '#fff', fontSize: 13, fontWeight: 700, cursor: isApplying ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', gap: 6, flex: 1, justifyContent: 'center', opacity: isApplying ? 0.7 : 1 }}
                   >
-                    <CheckCircle size={13} /> Apply to Form
+                    {isApplying ? <Loader2 size={13} style={{ animation: 'spin 0.8s linear infinite' }} /> : <CheckCircle size={13} />}
+                    {isApplying ? 'Applying...' : 'Apply to Form'}
                   </button>
                   <button
                     onClick={() => setAiPreview(null)}
