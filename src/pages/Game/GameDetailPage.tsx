@@ -5,6 +5,7 @@ import { ArrowLeft, Download, Monitor, Cpu, ExternalLink, Loader2, Play, AlignLe
 import { supabase } from '../../lib/supabase'
 import type { Game, DownloadLink, Category } from '../../lib/supabase'
 import { useAdSettings } from '../../context/AdSettingsContext'
+import { trackGameView } from '../../lib/analytics'
 
 const CLOUD_ICONS: Record<string, string> = {
   'Google Drive': '🟢',
@@ -195,8 +196,8 @@ export default function GameDetailPage() {
         .order('sort_order')
       setLinks((dl as any) || [])
 
-      // Increment view count
-      ;(supabase.from('games') as any).update({ view_count: ((data as any).view_count || 0) + 1 }).eq('id', (data as any).id)
+      // Track game view by platform (also updates legacy view_count)
+      trackGameView((data as any).id, (data as any).view_count || 0)
       setLoading(false)
     }
     fetch()

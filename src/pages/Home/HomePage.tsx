@@ -471,8 +471,8 @@ const LoadingOverlay = styled.div`
 
 const ScrollTopBtn = styled.button<{ $visible: boolean }>`
   position: fixed;
-  bottom: 28px;
-  right: 24px;
+  bottom: 100px;
+  right: 34px;
   z-index: 999;
   width: 44px;
   height: 44px;
@@ -491,7 +491,7 @@ const ScrollTopBtn = styled.button<{ $visible: boolean }>`
   transform: ${p => p.$visible ? 'translateY(0)' : 'translateY(16px)'};
   pointer-events: ${p => p.$visible ? 'auto' : 'none'};
   &:hover { background: rgba(124,58,237,0.4); color: #fff; transform: translateY(-2px); }
-  @media (max-width: 900px) { bottom: 25px; right: 16px; }
+  @media (max-width: 900px) { bottom: 100px; right: 22px; }
 `
 
 /* ─── Helper ─────────────────────────────────────── */

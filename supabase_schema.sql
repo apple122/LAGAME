@@ -90,3 +90,54 @@ CREATE POLICY "Anon full access categories" ON categories FOR ALL USING (true) W
 CREATE POLICY "Anon full access games" ON games FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Anon full access download_links" ON download_links FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Anon full access ad_settings" ON ad_settings FOR ALL USING (true) WITH CHECK (true);
+
+-- ===================================================
+-- ANALYTICS TABLES (run these separately if schema already exists)
+-- ===================================================
+
+-- Site-wide page visits (1 row per visit session)
+CREATE TABLE IF NOT EXISTS site_views (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  platform TEXT NOT NULL DEFAULT 'other',   -- 'ios' | 'android' | 'windows' | 'macos' | 'linux' | 'other'
+  visited_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Game views aggregated by platform (upsert increments counter)
+CREATE TABLE IF NOT EXISTS game_view_platforms (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  game_id UUID NOT NULL REFERENCES games(id) ON DELETE CASCADE,
+  platform TEXT NOT NULL DEFAULT 'other',
+  view_count INTEGER DEFAULT 1,
+  UNIQUE(game_id, platform)
+);
+
+-- Enable RLS on analytics tables
+ALTER TABLE site_views ENABLE ROW LEVEL SECURITY;
+ALTER TABLE game_view_platforms ENABLE ROW LEVEL SECURITY;
+
+-- Public read (for admin dashboard)
+CREATE POLICY "Public can read site_views" ON site_views FOR SELECT USING (true);
+CREATE POLICY "Public can read game_view_platforms" ON game_view_platforms FOR SELECT USING (true);
+
+-- Anon insert (visitors write their own rows)
+CREATE POLICY "Anon can insert site_views" ON site_views FOR INSERT WITH CHECK (true);
+
+-- Anon full access for game_view_platforms (needed for upsert)
+CREATE POLICY "Anon full access game_view_platforms" ON game_view_platforms FOR ALL USING (true) WITH CHECK (true);
+
+-- ───────────────────────────────────────────────────────────────────
+-- Stored procedure: increment game platform view count (atomic upsert)
+-- ───────────────────────────────────────────────────────────────────
+CREATE OR REPLACE FUNCTION increment_game_platform_view(p_game_id UUID, p_platform TEXT)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  INSERT INTO game_view_platforms (game_id, platform, view_count)
+  VALUES (p_game_id, p_platform, 1)
+  ON CONFLICT (game_id, platform)
+  DO UPDATE SET view_count = game_view_platforms.view_count + 1;
+END;
+$$;
+

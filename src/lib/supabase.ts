@@ -64,6 +64,19 @@ export type AdSettings = {
   updated_at: string
 }
 
+export type SiteView = {
+  id: string
+  platform: string
+  visited_at: string
+}
+
+export type GameViewPlatform = {
+  id: string
+  game_id: string
+  platform: string
+  view_count: number
+}
+
 export const uploadImage = async (file: File): Promise<string> => {
   const fileExt = file.name.split('.').pop()
   const fileName = `${Math.random().toString(36).substring(2, 15)}_${Date.now()}.${fileExt}`

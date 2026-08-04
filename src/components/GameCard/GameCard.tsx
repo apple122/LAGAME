@@ -122,6 +122,14 @@ const DownloadCount = styled.div`
   color: rgba(148,163,184,0.6);
 `
 
+const ViewCountBadge = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: rgba(148,163,184,0.55);
+`
+
 const PlaceholderCover = styled.div`
   width: 100%;
   height: 100%;
@@ -167,10 +175,18 @@ export default function GameCard({ game }: Props) {
               </div>
             )}
           </div>
-          <DownloadCount>
-            <Download size={11} />
-            {game.download_links?.length ?? 0} links
-          </DownloadCount>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <ViewCountBadge title="Views">
+              <Eye size={11} />
+              {(game.view_count ?? 0) >= 1000
+                ? `${((game.view_count ?? 0) / 1000).toFixed(1)}k`
+                : (game.view_count ?? 0)}
+            </ViewCountBadge>
+            <DownloadCount>
+              <Download size={11} />
+              {game.download_links?.length ?? 0} links
+            </DownloadCount>
+          </div>
         </Meta>
       </Body>
     </Card>

@@ -1,11 +1,29 @@
 import { useState, useEffect } from 'react'
-import styled from 'styled-components'
+import styled, { keyframes } from 'styled-components'
 import { Link } from 'react-router-dom'
-import { Gamepad2, Tags, Eye, Plus, TrendingUp } from 'lucide-react'
+import { Gamepad2, Tags, Eye, Plus, TrendingUp, Globe, BarChart2, Activity } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
+import { getSitePlatformStats, getAllGamesPlatformStats, getTotalSiteVisits } from '../../../lib/analytics'
+import type { PlatformStat } from '../../../lib/analytics'
 
+// ── Animations ─────────────────────────────────────────────────────
+const fadeUp = keyframes`from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); }`
+
+// ── Platform config ────────────────────────────────────────────────
+const PLATFORM_CONFIG: Record<string, { label: string; icon: string; color: string; gradient: string }> = {
+  windows: { label: 'Windows', icon: '🪟', color: '#06b6d4', gradient: 'linear-gradient(135deg,#06b6d4,#0284c7)' },
+  macos: { label: 'macOS', icon: '🍎', color: '#a78bfa', gradient: 'linear-gradient(135deg,#a78bfa,#7c3aed)' },
+  ios: { label: 'iOS', icon: '📱', color: '#34d399', gradient: 'linear-gradient(135deg,#34d399,#059669)' },
+  android: { label: 'Android', icon: '🤖', color: '#fbbf24', gradient: 'linear-gradient(135deg,#fbbf24,#d97706)' },
+  linux: { label: 'Linux', icon: '🐧', color: '#f97316', gradient: 'linear-gradient(135deg,#f97316,#ea580c)' },
+  other: { label: 'Other', icon: '🌐', color: '#94a3b8', gradient: 'linear-gradient(135deg,#94a3b8,#64748b)' },
+}
+const getPConfig = (p: string) => PLATFORM_CONFIG[p] ?? PLATFORM_CONFIG.other
+
+// ── Styled Components ──────────────────────────────────────────────
 const Grid = styled.div`
   display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; margin-bottom: 32px;
+  animation: ${fadeUp} 0.4s ease both;
 `
 
 const StatCard = styled.div<{ $color: string }>`
@@ -15,54 +33,135 @@ const StatCard = styled.div<{ $color: string }>`
   transition: transform 0.2s, box-shadow 0.2s;
   &:hover { transform: translateY(-3px); box-shadow: 0 8px 32px rgba(0,0,0,0.3); }
 `
-
 const StatNum = styled.div<{ $color: string }>`
   font-family: 'Outfit', sans-serif; font-size: 32px; font-weight: 900;
   color: ${p => p.$color}; line-height: 1;
 `
-
 const StatLabel = styled.div`font-size: 13px; color: rgba(148,163,184,0.6); margin-top: 6px; font-weight: 500;`
 
 const Section = styled.div`
   background: rgba(18,18,31,0.8); border: 1px solid rgba(124,58,237,0.15);
   border-radius: 16px; padding: 24px; margin-bottom: 24px;
+  animation: ${fadeUp} 0.45s ease both;
 `
-
-const SectionHeader = styled.div`
-  display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px;
-`
-
+const SectionHeader = styled.div`display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;`
 const SectionTitle = styled.h2`
   font-family: 'Outfit', sans-serif; font-size: 16px; font-weight: 700; color: #fff;
   display: flex; align-items: center; gap: 8px;
 `
-
 const AddBtn = styled(Link)`
   display: flex; align-items: center; gap: 6px; padding: 8px 16px;
   background: linear-gradient(135deg, #7c3aed, #06b6d4); border-radius: 8px;
   font-size: 13px; font-weight: 600; color: #fff; transition: opacity 0.2s;
   &:hover { opacity: 0.9; }
 `
-
 const GameRow = styled.div`
   display: flex; align-items: center; gap: 12px; padding: 10px 0;
   border-bottom: 1px solid rgba(124,58,237,0.08);
   &:last-child { border-bottom: none; }
 `
-
 const GameThumb = styled.img`width: 52px; height: 36px; object-fit: cover; border-radius: 6px;`
 const GameThumbPlaceholder = styled.div`width: 52px; height: 36px; background: rgba(124,58,237,0.1); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 18px;`
-
 const GameTitle = styled.span`font-size: 14px; font-weight: 500; color: #e2e8f0; flex: 1;`
-
 const ViewCount = styled.span`font-size: 12px; color: rgba(148,163,184,0.5); display: flex; align-items: center; gap: 4px;`
 
+// ── Analytics Chart ────────────────────────────────────────────────
+const BarWrap = styled.div`display: flex; flex-direction: column; gap: 14px;`
+const BarRow = styled.div`display: flex; align-items: center; gap: 12px;`
+const BarLabel = styled.div`width: 90px; font-size: 13px; color: #e2e8f0; display: flex; align-items: center; gap: 6px; flex-shrink: 0;`
+const BarTrack = styled.div`flex: 1; height: 10px; background: rgba(255,255,255,0.05); border-radius: 999px; overflow: hidden;`
+const grow = (w: string) => keyframes`from { width: 0%; } to { width: ${w}; }`
+const BarFill = styled.div<{ $pct: string; $grad: string }>`
+  height: 100%; border-radius: 999px;
+  background: ${p => p.$grad};
+  width: ${p => p.$pct};
+  animation: ${p => grow(p.$pct)} 0.8s cubic-bezier(0.34,1.56,0.64,1) both;
+`
+const BarCount = styled.div`width: 52px; text-align: right; font-size: 13px; font-weight: 700; color: rgba(148,163,184,0.8);`
+
+// ── Platform mini badges ───────────────────────────────────────────
+const PlatformBadge = styled.span<{ $color: string }>`
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700;
+  background: ${p => p.$color}22; color: ${p => p.$color};
+  border: 1px solid ${p => p.$color}44;
+`
+
+// ── Two-col grid for analytics ─────────────────────────────────────
+const AnalyticsGrid = styled.div`
+  display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px;
+  @media (max-width: 900px) { grid-template-columns: 1fr; }
+  animation: ${fadeUp} 0.5s ease both;
+`
+
+// ── Top games by total views table ────────────────────────────────
+const Table = styled.table`width: 100%; border-collapse: collapse;`
+const Th = styled.th`
+  text-align: left; padding: 8px 12px; font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.5px; color: rgba(148,163,184,0.5);
+  border-bottom: 1px solid rgba(124,58,237,0.1);
+`
+const Td = styled.td`
+  padding: 10px 12px; font-size: 13px; color: #e2e8f0;
+  border-bottom: 1px solid rgba(124,58,237,0.06);
+`
+const Rank = styled.div<{ $rank: number }>`
+  width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 900;
+  background: ${p => p.$rank === 1 ? 'linear-gradient(135deg,#fbbf24,#f59e0b)' : p.$rank === 2 ? 'linear-gradient(135deg,#94a3b8,#64748b)' : p.$rank === 3 ? 'linear-gradient(135deg,#f97316,#ea580c)' : 'rgba(255,255,255,0.08)'};
+  color: ${p => p.$rank <= 3 ? '#fff' : 'rgba(148,163,184,0.6)'};
+`
+
+// ── Platform breakdown inline ──────────────────────────────────────
+function PlatformBreakdown({ stats }: { stats: PlatformStat[] }) {
+  const total = stats.reduce((s, r) => s + r.count, 0)
+  if (total === 0) return <span style={{ fontSize: 12, color: 'rgba(148,163,184,0.3)' }}>No data</span>
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+      {stats.map(s => {
+        const cfg = getPConfig(s.platform)
+        return (
+          <PlatformBadge key={s.platform} $color={cfg.color}>
+            {cfg.icon} {cfg.label} {s.count}
+          </PlatformBadge>
+        )
+      })}
+    </div>
+  )
+}
+
+// ── Bar Chart ──────────────────────────────────────────────────────
+function PlatformBarChart({ data, emptyMsg = 'No data yet' }: { data: PlatformStat[]; emptyMsg?: string }) {
+  const max = Math.max(...data.map(d => d.count), 1)
+  if (data.length === 0) return <p style={{ fontSize: 13, color: 'rgba(148,163,184,0.3)' }}>{emptyMsg}</p>
+  return (
+    <BarWrap>
+      {data.map(d => {
+        const cfg = getPConfig(d.platform)
+        const pct = `${Math.round((d.count / max) * 100)}%`
+        return (
+          <BarRow key={d.platform}>
+            <BarLabel><span>{cfg.icon}</span> {cfg.label}</BarLabel>
+            <BarTrack><BarFill $pct={pct} $grad={cfg.gradient} /></BarTrack>
+            <BarCount>{d.count.toLocaleString()}</BarCount>
+          </BarRow>
+        )
+      })}
+    </BarWrap>
+  )
+}
+
+// ── Main Component ─────────────────────────────────────────────────
 export default function AdminDashboard() {
   const [stats, setStats] = useState({ games: 0, categories: 0, totalViews: 0 })
   const [recentGames, setRecentGames] = useState<any[]>([])
+  const [sitePlatformStats, setSitePlatformStats] = useState<PlatformStat[]>([])
+  const [totalVisits, setTotalVisits] = useState(0)
+  const [topGames, setTopGames] = useState<{ id: string; title: string; cover_image: string | null; view_count: number; platforms: PlatformStat[] }[]>([])
 
   useEffect(() => {
     const load = async () => {
+      // Basic stats + recent games
       const [{ count: gc }, { count: cc }, { data: games }] = await Promise.all([
         supabase.from('games').select('id', { count: 'exact', head: true }),
         supabase.from('categories').select('id', { count: 'exact', head: true }),
@@ -71,6 +170,34 @@ export default function AdminDashboard() {
       const totalViews = (games || []).reduce((s: number, g: any) => s + (g.view_count || 0), 0)
       setStats({ games: gc || 0, categories: cc || 0, totalViews })
       setRecentGames(games || [])
+
+      // Analytics: site visits + platform
+      const [siteStats, visits] = await Promise.all([
+        getSitePlatformStats(),
+        getTotalSiteVisits(),
+      ])
+      setSitePlatformStats(siteStats)
+      setTotalVisits(visits)
+
+      // Top games with platform breakdown
+      const { data: topRaw } = await supabase
+        .from('games')
+        .select('id,title,cover_image,view_count')
+        .order('view_count', { ascending: false })
+        .limit(5)
+
+      if (topRaw && topRaw.length > 0) {
+        const allPlatformData = await getAllGamesPlatformStats()
+        const platformMap: Record<string, PlatformStat[]> = {}
+        for (const row of allPlatformData) {
+          if (!platformMap[row.game_id]) platformMap[row.game_id] = []
+          platformMap[row.game_id].push({ platform: row.platform, count: row.view_count })
+        }
+        setTopGames(topRaw.map((g: any) => ({
+          ...g,
+          platforms: (platformMap[g.id] || []).sort((a, b) => b.count - a.count),
+        })))
+      }
     }
     load()
   }, [])
@@ -81,6 +208,7 @@ export default function AdminDashboard() {
         <TrendingUp size={24} style={{ color: '#7c3aed' }} /> Dashboard
       </h1>
 
+      {/* ── Summary Stats ── */}
       <Grid>
         <StatCard $color="#7c3aed">
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}><Gamepad2 size={18} style={{ color: '#7c3aed' }} /></div>
@@ -95,10 +223,85 @@ export default function AdminDashboard() {
         <StatCard $color="#22c55e">
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}><Eye size={18} style={{ color: '#22c55e' }} /></div>
           <StatNum $color="#22c55e">{stats.totalViews.toLocaleString()}</StatNum>
-          <StatLabel>Total Views</StatLabel>
+          <StatLabel>Game Page Views</StatLabel>
+        </StatCard>
+        <StatCard $color="#f59e0b">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}><Globe size={18} style={{ color: '#f59e0b' }} /></div>
+          <StatNum $color="#f59e0b">{totalVisits.toLocaleString()}</StatNum>
+          <StatLabel>Site Visits</StatLabel>
         </StatCard>
       </Grid>
 
+      {/* ── Analytics: Platform charts ── */}
+      <AnalyticsGrid>
+        {/* Site Traffic by Platform */}
+        <Section style={{ margin: 0 }}>
+          <SectionHeader>
+            <SectionTitle><Globe size={16} style={{ color: '#f59e0b' }} /> Site Traffic by Platform</SectionTitle>
+          </SectionHeader>
+          <PlatformBarChart
+            data={sitePlatformStats}
+            emptyMsg="No visit data yet — users will be tracked on next visit."
+          />
+        </Section>
+
+        {/* Game Views by Platform */}
+        <Section style={{ margin: 0 }}>
+          <SectionHeader>
+            <SectionTitle><BarChart2 size={16} style={{ color: '#06b6d4' }} /> Game Views by Platform</SectionTitle>
+          </SectionHeader>
+          {(() => {
+            // Aggregate game_view_platforms across all games
+            const agg: Record<string, number> = {}
+            topGames.forEach(g => g.platforms.forEach(p => { agg[p.platform] = (agg[p.platform] || 0) + p.count }))
+            const data: PlatformStat[] = Object.entries(agg).map(([platform, count]) => ({ platform, count })).sort((a, b) => b.count - a.count)
+            return <PlatformBarChart data={data} emptyMsg="No game view data yet." />
+          })()}
+        </Section>
+      </AnalyticsGrid>
+
+      {/* ── Top Games Table ── */}
+      {topGames.length > 0 && (
+        <Section>
+          <SectionHeader>
+            <SectionTitle><Activity size={16} style={{ color: '#22c55e' }} /> Top Games — Platform Breakdown</SectionTitle>
+          </SectionHeader>
+          <div style={{ overflowX: 'auto' }}>
+            <Table>
+              <thead>
+                <tr>
+                  <Th style={{ width: 40 }}>#</Th>
+                  <Th>Game</Th>
+                  <Th style={{ width: 80, textAlign: 'right' }}>Total Views</Th>
+                  <Th>Platform Breakdown</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {topGames.map((g, i) => (
+                  <tr key={g.id}>
+                    <Td><Rank $rank={i + 1}>{i + 1}</Rank></Td>
+                    <Td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        {g.cover_image
+                          ? <img src={g.cover_image} alt={g.title} style={{ width: 44, height: 30, objectFit: 'cover', borderRadius: 6, flexShrink: 0 }} />
+                          : <div style={{ width: 44, height: 30, background: 'rgba(124,58,237,0.1)', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>🎮</div>
+                        }
+                        <span style={{ fontWeight: 600 }}>{g.title}</span>
+                      </div>
+                    </Td>
+                    <Td style={{ textAlign: 'right', fontWeight: 700, color: '#22c55e' }}>
+                      {(g.view_count || 0).toLocaleString()}
+                    </Td>
+                    <Td><PlatformBreakdown stats={g.platforms} /></Td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          </div>
+        </Section>
+      )}
+
+      {/* ── Recent Games ── */}
       <Section>
         <SectionHeader>
           <SectionTitle><Gamepad2 size={16} /> Recent Games</SectionTitle>
