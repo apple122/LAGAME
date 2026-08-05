@@ -447,12 +447,12 @@ export default function Header() {
       <HeaderWrap>
         <Nav>
           <Logo to="/">
-            <img src="/LOGO.png" alt="LAPACK Logo" />
+            <img src="/LOGO.png" alt="LAGAME Logo" />
             <LogoText>
-              <LogoTitle>LAPACK</LogoTitle>
+              <LogoTitle>LA-GAME</LogoTitle>
               <LogoSubtitle>
                 LAOS 🇱🇦
-                <img src="/LAOS.png" alt="LAPACK LAOS" style={{ height: 12, width: 'auto', borderRadius: 4 }} />
+                <img src="/LAOS.png" alt="LAGAME LAOS" style={{ height: 12, width: 'auto', borderRadius: 4 }} />
               </LogoSubtitle>
             </LogoText>
           </Logo>

@@ -13,7 +13,7 @@ export default function Footer() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <img src="/LOGO.png" alt="LAPACK Logo" style={{ height: 40, width: 'auto', borderRadius: 3 }} />
-            <span style={{ fontFamily: 'Noto Sans Lao', fontWeight: 800, fontSize: 18, background: 'linear-gradient(135deg,#7c3aed,#06b6d4)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>LAPACK</span>
+            <span style={{ fontFamily: 'Noto Sans Lao', fontWeight: 800, fontSize: 18, background: 'linear-gradient(135deg,#7c3aed,#06b6d4)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>LA-GAME</span>
           </div>
           <div style={{ display: 'flex', gap: 24 }}>
             <Link to="/" style={{ fontSize: 13, color: 'rgba(148,163,184,0.7)', transition: 'color 0.2s' }}>Home</Link>

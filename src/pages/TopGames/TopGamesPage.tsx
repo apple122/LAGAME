@@ -5,6 +5,8 @@ import { supabase } from '../../lib/supabase'
 import { useLanguage } from '../../lib/i18n/LanguageContext'
 import type { Game } from '../../lib/supabase'
 import GameCard from '../../components/GameCard/GameCard'
+import Seo from '../../components/Seo'
+import { getPageUrl } from '../../lib/seo'
 
 const Page = styled.div`max-width: 1400px; margin: 0 auto; padding: 32px 24px;`
 
@@ -69,13 +71,36 @@ export default function TopGamesPage() {
     fetchGames()
   }, [])
 
+  const pageTitle = 'Top PC Games'
+  const pageDescription = 'Explore the best free PC games ranked by downloads, popularity, and AI recommendations.'
+  const pageKeywords = 'top pc games, best pc games, free game downloads, game ranking'
+
   return (
-    <Page>
-      <Banner>
-        <div style={{ fontSize: 48, marginBottom: 12 }}>🏆</div>
-        <BannerTitle>{t('top.title')}</BannerTitle>
-        <p style={{ fontSize: 15, color: 'rgba(148,163,184,0.7)' }}>{t('top.subtitle')}</p>
-      </Banner>
+    <>
+      <Seo
+        title={pageTitle}
+        description={pageDescription}
+        keywords={pageKeywords}
+        path="/top-games"
+        image="/LOGO.png"
+        type="website"
+        schema={{
+          '@type': 'ItemList',
+          itemListElement: games.map((g, i) => ({
+            '@type': 'ListItem',
+            position: i + 1,
+            url: getPageUrl(`/game/${g.slug}`),
+            name: g.title,
+          })),
+        }}
+      />
+
+      <Page>
+        <Banner>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>🏆</div>
+          <BannerTitle>{t('top.title')}</BannerTitle>
+          <p style={{ fontSize: 15, color: 'rgba(148,163,184,0.7)' }}>{t('top.subtitle')}</p>
+        </Banner>
 
       {loading ? (
         <Loading><Loader2 size={20} style={{ animation: 'spin 0.8s linear infinite' }} /> {t('az.loading')}</Loading>
@@ -92,5 +117,6 @@ export default function TopGamesPage() {
         </Grid>
       )}
     </Page>
+    </>
   )
 }

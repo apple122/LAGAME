@@ -7,6 +7,8 @@ import type { Game, Category } from '../../lib/supabase'
 import { useCategoryTranslator } from '../../lib/i18n/CategoryTranslator'
 import GameCard from '../../components/GameCard/GameCard'
 import CommentSection from '../../components/CommentSection/CommentSection'
+import Seo from '../../components/Seo'
+import { getPageUrl, SITE_NAME } from '../../lib/seo'
 
 const PAGE_SIZE = 100
 
@@ -541,6 +543,21 @@ export default function HomePage() {
     sort !== 'created_at_desc' ? 1 : 0,
   ].reduce((a, b) => a + b, 0)
 
+  const pageTitle = 'Download Free PC Games'
+  const pageDescription = 'Browse and download free PC games with fast cloud links, top categories, and A-Z filters for fast game discovery.'
+  const pageKeywords = 'free pc games, download pc games, PC game hub, top PC games, freeware games'
+  const pageSchema = {
+    '@type': 'WebSite',
+    url: getPageUrl('/'),
+    name: SITE_NAME,
+    description: pageDescription,
+    potentialAction: {
+      '@type': 'SearchAction',
+      target: getPageUrl('/az-filter?q={search_term_string}'),
+      queryInput: 'required name=search_term_string',
+    },
+  }
+
   const openSheet = () => {
     setTmpCat(selectedCat)
     setTmpPlatform(selectedPlatform)
@@ -651,6 +668,16 @@ export default function HomePage() {
 
   return (
     <>
+      <Seo
+        title={pageTitle}
+        description={pageDescription}
+        keywords={pageKeywords}
+        path="/"
+        image="/LOGO.png"
+        type="website"
+        schema={pageSchema}
+      />
+
       {/* Hero Banner */}
       <Hero>
         <HeroTitle>

@@ -9,6 +9,8 @@ import { useAdSettings } from '../../context/AdSettingsContext'
 import { trackGameView } from '../../lib/analytics'
 import CommentSection from '../../components/CommentSection/CommentSection'
 import { useLanguage } from '../../lib/i18n/LanguageContext'
+import Seo from '../../components/Seo'
+import { getPageUrl, DEFAULT_IMAGE } from '../../lib/seo'
 
 
 const CLOUD_ICONS: Record<string, string> = {
@@ -224,6 +226,25 @@ export default function GameDetailPage() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [handleKeyDown])
 
+  const pageTitle = game ? `${game.title} - Free PC Game Download` : 'Game Details'
+  const pageDescription = game
+    ? `${game.title} free download with cloud links, screenshots and system requirements.`
+    : 'Game details and download options for PC games.'
+  const pageKeywords = game
+    ? `${game.title}, free pc game download, ${game.category_ids?.map((id: string) => id).join(', ')}`
+    : 'pc game download, free games, game details'
+  const pageSchema = game
+    ? {
+      '@type': 'SoftwareApplication',
+      name: game.title,
+      description: game.description || pageDescription,
+      url: getPageUrl(`/game/${slug}`),
+      image: game.cover_image || DEFAULT_IMAGE,
+      operatingSystem: 'Windows, macOS, Android',
+      applicationCategory: 'Game',
+    }
+    : undefined
+
   const handleDownload = (link: DownloadLink) => {
     if (adSettings?.is_active && adSettings.ad_url) {
       const encoded = encodeURIComponent(link.url)
@@ -239,8 +260,19 @@ export default function GameDetailPage() {
   const sr = game.system_requirements
 
   return (
-    <Page>
-      <Back to="/"><ArrowLeft size={15} /> {t('game.back')}</Back>
+    <>
+      <Seo
+        title={pageTitle}
+        description={pageDescription}
+        keywords={pageKeywords}
+        path={`/game/${slug}`}
+        image={game.cover_image ?? '/LOGO.png'}
+        type="article"
+        schema={pageSchema}
+      />
+
+      <Page>
+        <Back to="/"><ArrowLeft size={15} /> {t('game.back')}</Back>
 
       <Hero>
         <div>
@@ -448,5 +480,6 @@ export default function GameDetailPage() {
       )}
       <CommentSection type="game" gameId={game.id} />
     </Page>
+    </>
   )
 }

@@ -6,6 +6,8 @@ import { useLanguage } from '../../lib/i18n/LanguageContext'
 import type { Game } from '../../lib/supabase'
 import GameCard from '../../components/GameCard/GameCard'
 import { Search, Loader2 } from 'lucide-react'
+import Seo from '../../components/Seo'
+import { getPageUrl } from '../../lib/seo'
 
 const AZ_LETTERS = ['#', ...Array.from({ length: 26 }, (_, i) => String.fromCharCode(65 + i))]
 
@@ -99,14 +101,36 @@ export default function AZFilterPage() {
     }, 350)
   }
 
-  return (
-    <Page>
-      <PageHeader>
-        <PageTitle>{t('az.title')}</PageTitle>
-        <p style={{ fontSize: 14, color: 'rgba(148,163,184,0.6)' }}>{t('az.subtitle')}</p>
-      </PageHeader>
+  const pageTitle = searchQ ? `Search results for ${searchQ}` : 'A-Z Game Browser'
+  const pageDescription = searchQ
+    ? `Search PC games starting with ${searchQ} and filter by platform or letter to find downloads fast.`
+    : 'Browse PC games by name with A-Z filters and search for free downloads.'
+  const pageKeywords = 'pc game browser, game search, a-z games, free game downloads'
 
-      <SearchBar>
+  return (
+    <>
+      <Seo
+        title={pageTitle}
+        description={pageDescription}
+        keywords={pageKeywords}
+        path="/az-filter"
+        image="/LOGO.png"
+        type="website"
+        schema={{
+          '@type': 'WebPage',
+          url: getPageUrl('/az-filter'),
+          name: pageTitle,
+          description: pageDescription,
+        }}
+      />
+
+      <Page>
+        <PageHeader>
+          <PageTitle>{t('az.title')}</PageTitle>
+          <p style={{ fontSize: 14, color: 'rgba(148,163,184,0.6)' }}>{t('az.subtitle')}</p>
+        </PageHeader>
+
+        <SearchBar>
         <SearchIcon><Search size={16} /></SearchIcon>
         <SearchInput
           placeholder={t('az.search_placeholder')}
@@ -135,5 +159,6 @@ export default function AZFilterPage() {
         <Grid>{games.map((g, i) => <GameCard key={g.id} game={g as any} index={i} />)}</Grid>
       )}
     </Page>
+    </>
   )
 }
