@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import styled, { keyframes, css } from 'styled-components'
 
+import { useLanguage } from '../../lib/i18n/LanguageContext'
 import { Filter, Gamepad2, ChevronLeft, ChevronRight, Loader2, X, SlidersHorizontal, Check, ChevronUp } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import type { Game, Category } from '../../lib/supabase'
@@ -664,6 +665,7 @@ export default function HomePage() {
     setLoading(false)
   }
 
+  const { t } = useLanguage()
   const { translateCategoryName } = useCategoryTranslator()
 
   return (
@@ -682,31 +684,31 @@ export default function HomePage() {
       <Hero>
         <HeroTitle>
           <img src="/game-2-svgrepo-com.svg" alt="Gamepad" style={{ width: 64, height: 64, filter: 'brightness(0) invert(1) drop-shadow(0 4px 12px rgba(124,58,237,0.5))' }} />
-          Game Hub
+          {t('home.title')}
         </HeroTitle>
-        <HeroSub>Download your favorite PC games — free, fast, and easy.</HeroSub>
+        <HeroSub>{t('home.subtitle')}</HeroSub>
         <UptimeContainer>
           <UptimeBlock>
             <UptimeValue>{uptime.days}</UptimeValue>
-            <UptimeLabel>Days</UptimeLabel>
+            <UptimeLabel>{t('home.uptime_days')}</UptimeLabel>
           </UptimeBlock>
           <UptimeBlock>
             <UptimeValue>{uptime.hours}</UptimeValue>
-            <UptimeLabel>Hours</UptimeLabel>
+            <UptimeLabel>{t('home.uptime_hours')}</UptimeLabel>
           </UptimeBlock>
           <UptimeBlock>
             <UptimeValue>{uptime.minutes}</UptimeValue>
-            <UptimeLabel>Minutes</UptimeLabel>
+            <UptimeLabel>{t('home.uptime_minutes')}</UptimeLabel>
           </UptimeBlock>
           <UptimeBlock>
             <UptimeValue>{uptime.seconds}</UptimeValue>
-            <UptimeLabel>Seconds</UptimeLabel>
+            <UptimeLabel>{t('home.uptime_seconds')}</UptimeLabel>
           </UptimeBlock>
         </UptimeContainer>
         <HeroStats>
-          <Stat><StatNum>{total}+</StatNum><StatLabel>Games</StatLabel></Stat>
-          <Stat><StatNum>{categories.length}</StatNum><StatLabel>Categories</StatLabel></Stat>
-          <Stat><StatNum>Free</StatNum><StatLabel>Always</StatLabel></Stat>
+          <Stat><StatNum>{total}+</StatNum><StatLabel>{t('home.stat_games')}</StatLabel></Stat>
+          <Stat><StatNum>{categories.length}</StatNum><StatLabel>{t('home.stat_categories')}</StatLabel></Stat>
+          <Stat><StatNum>{t('home.stat_free')}</StatNum><StatLabel>{t('home.stat_always')}</StatLabel></Stat>
         </HeroStats>
       </Hero>
 
@@ -714,9 +716,9 @@ export default function HomePage() {
         {/* Sidebar (desktop only) */}
         <Sidebar>
           <SidebarCard>
-            <SidebarTitle><Filter size={12} /> Categories</SidebarTitle>
+            <SidebarTitle><Filter size={12} /> {t('home.categories')}</SidebarTitle>
             <CatBtn $active={selectedCat === null} onClick={() => { setSelectedCat(null); setPage(1) }}>
-              All Games
+              {t('home.all_games')}
               <span style={{ fontSize: 11, background: selectedCat === null ? 'rgba(255,255,255,0.2)' : 'rgba(124,58,237,0.2)', padding: '2px 6px', borderRadius: 6, minWidth: 20, textAlign: 'center' }}>
                 {allGamesCount}
               </span>
@@ -743,21 +745,21 @@ export default function HomePage() {
             </ToolbarLeft>
             <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
               {/* Desktop dropdowns */}
-              <SortSelect value={selectedPlatform} onChange={e => { setSelectedPlatform(e.target.value); setPage(1) }}>
-                <option value="all">🌐 All Platforms</option>
-                <option value="windows">🖥️ Windows</option>
-                <option value="macos">🍏 macOS</option>
+                <SortSelect value={selectedPlatform} onChange={e => { setSelectedPlatform(e.target.value); setPage(1) }}>
+                <option value="all">{t('home.platform_all')}</option>
+                <option value="windows">{t('home.platform_windows')}</option>
+                <option value="macos">{t('home.platform_macos')}</option>
               </SortSelect>
               <SortSelect value={sort} onChange={e => { setSort(e.target.value); setPage(1) }}>
-                <option value="created_at_desc">Newest First</option>
-                <option value="title_asc">A-Z</option>
-                <option value="view_count_desc">Most Viewed</option>
+                <option value="created_at_desc">{t('home.sort_newest')}</option>
+                <option value="title_asc">{t('home.sort_az')}</option>
+                <option value="view_count_desc">{t('home.sort_most_viewed')}</option>
               </SortSelect>
 
               {/* Mobile filter button */}
               <MobileFilterBtn $active={activeFilters > 0} onClick={openSheet}>
                 <SlidersHorizontal size={15} />
-                Filter
+                {t('home.filter')}
                 {activeFilters > 0 && <FilterBadge>{activeFilters}</FilterBadge>}
               </MobileFilterBtn>
             </div>
@@ -766,13 +768,13 @@ export default function HomePage() {
           {loading ? (
             <LoadingOverlay>
               <Loader2 size={20} style={{ animation: 'spin 0.8s linear infinite' }} />
-              Loading games...
+              {t('home.loading_games')}
             </LoadingOverlay>
           ) : games.length === 0 ? (
             <EmptyState>
               <div style={{ fontSize: 48, marginBottom: 16 }}>🎮</div>
-              <p style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>No games yet</p>
-              <p style={{ fontSize: 13 }}>Add some games from the admin panel!</p>
+              <p style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>{t('home.no_games')}</p>
+              <p style={{ fontSize: 13 }}>{t('home.no_games_sub')}</p>
             </EmptyState>
           ) : (
             <Grid>
@@ -805,13 +807,13 @@ export default function HomePage() {
           <Sheet $closing={sheetClosing}>
             <SheetHandle />
             <SheetHeader>
-              <SheetTitle><SlidersHorizontal size={16} style={{ color: '#7c3aed' }} /> Filters</SheetTitle>
+              <SheetTitle><SlidersHorizontal size={16} style={{ color: '#7c3aed' }} /> {t('home.filter')}</SheetTitle>
               <SheetCloseBtn onClick={closeSheet}><X size={15} /></SheetCloseBtn>
             </SheetHeader>
 
             {/* Platform */}
             <SheetSection>
-              <SheetSectionTitle>🌐 Platform</SheetSectionTitle>
+              <SheetSectionTitle>{t('home.platform')}</SheetSectionTitle>
               <ChipsRow>
                 {(['all', 'windows', 'macos'] as const).map(p => (
                   <OptionChip key={p} $active={tmpPlatform === p} onClick={() => setTmpPlatform(p)}>
@@ -824,7 +826,7 @@ export default function HomePage() {
 
             {/* Sort */}
             <SheetSection>
-              <SheetSectionTitle>⬆️ Sort By</SheetSectionTitle>
+              <SheetSectionTitle>{t('home.sort_by')}</SheetSectionTitle>
               <ChipsRow>
                 {Object.entries(SORT_LABELS).map(([val, label]) => (
                   <OptionChip key={val} $active={tmpSort === val} onClick={() => setTmpSort(val)}>
@@ -857,7 +859,7 @@ export default function HomePage() {
             </SheetSection>
 
             <SheetApplyBtn onClick={applySheet}>
-              Apply Filters {activeFilters > 0 ? `(${activeFilters} active)` : ''}
+              {t('home.apply_filters')} {activeFilters > 0 ? `(${activeFilters} ${t('home.active')})` : ''}
             </SheetApplyBtn>
           </Sheet>
         </>
