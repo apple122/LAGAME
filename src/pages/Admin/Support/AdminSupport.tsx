@@ -56,7 +56,7 @@ const ListHeader = styled.div`
   padding: 16px; border-bottom: 1px solid rgba(124,58,237,0.1);
   display: flex; align-items: center; justify-content: space-between;
 `
-const ListTitle = styled.h2`font-family:'Outfit',sans-serif; font-size:15px; font-weight:700; color:#fff; display:flex; align-items:center; gap:8px;`
+const ListTitle = styled.h2`font-family: 'Noto Sans Lao', sans-serif; font-size:15px; font-weight:700; color:#fff; display:flex; align-items:center; gap:8px;`
 const RefreshBtn = styled.button`
   background: none; border: 1px solid rgba(124,58,237,0.2); border-radius:8px; color:rgba(148,163,184,0.7);
   padding:6px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all 0.15s;
@@ -98,7 +98,7 @@ const ChatHeader = styled.div`
   display: flex; align-items: center; gap: 10px;
   background: rgba(124,58,237,0.06);
 `
-const ChatTitle = styled.div`font-family:'Outfit',sans-serif; font-size:15px; font-weight:700; color:#fff;`
+const ChatTitle = styled.div`font-family: 'Noto Sans Lao', sans-serif; font-size:15px; font-weight:700; color:#fff;`
 const ChatMeta = styled.div`font-size:12px; color:rgba(148,163,184,0.6);`
 const Messages = styled.div`
   flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:10px;
@@ -152,7 +152,7 @@ const AttachmentFile = styled.a`
 const InputArea = styled.div`padding:12px 16px; border-top:1px solid rgba(124,58,237,0.1); display:flex; gap:8px; align-items:flex-end;`
 const TextArea = styled.textarea`
   flex:1; background:rgba(255,255,255,0.05); border:1px solid rgba(124,58,237,0.2); border-radius:12px;
-  color:#e2e8f0; font-size:13.5px; padding:10px 13px; font-family:'Inter',sans-serif;
+  color:#e2e8f0; font-size:13.5px; padding:10px 13px; font-family: 'Noto Sans Lao', sans-serif;
   resize:none; outline:none; max-height:120px; min-height:40px; line-height:1.5; transition:border-color 0.2s;
   &::placeholder { color:rgba(148,163,184,0.4); }
   &:focus { border-color:rgba(124,58,237,0.5); }
@@ -365,7 +365,7 @@ export default function AdminSupport() {
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-        <h1 style={{ fontFamily: 'Outfit', fontSize: 22, fontWeight: 800, color: '#fff', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <h1 style={{ fontFamily: 'Noto Sans Lao', fontSize: 22, fontWeight: 800, color: '#fff', display: 'flex', alignItems: 'center', gap: 10 }}>
           <MessageSquare size={22} style={{ color: '#7c3aed' }} />
           Support Chat
           {unreadCount > 0 && (

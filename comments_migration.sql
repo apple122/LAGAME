@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS comments (
   content TEXT NOT NULL,
   rating INTEGER CHECK (rating >= 1 AND rating <= 5),
   is_approved BOOLEAN DEFAULT TRUE,
+  author_token UUID,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -17,17 +18,26 @@ CREATE INDEX IF NOT EXISTS idx_comments_type ON comments(type);
 -- Enable Row Level Security
 ALTER TABLE comments ENABLE ROW LEVEL SECURITY;
 
--- Allow anyone to read approved comments
-CREATE POLICY "Read approved comments" ON comments
-  FOR SELECT USING (is_approved = TRUE);
+-- Allow anyone to read all comments (frontend handles filtering unapproved)
+CREATE POLICY "Read all comments" ON comments
+  FOR SELECT USING (TRUE);
 
 -- Allow anyone to insert comments
 CREATE POLICY "Insert comments" ON comments
   FOR INSERT WITH CHECK (TRUE);
 
--- Advanced Comments: Replies and Images
+-- Allow anon to update comments
+CREATE POLICY "Update comments" ON comments
+  FOR UPDATE USING (TRUE) WITH CHECK (TRUE);
+
+-- Allow anon to delete comments
+CREATE POLICY "Delete comments" ON comments
+  FOR DELETE USING (TRUE);
+
 ALTER TABLE comments ADD COLUMN IF NOT EXISTS parent_id UUID REFERENCES comments(id) ON DELETE CASCADE;
 ALTER TABLE comments ADD COLUMN IF NOT EXISTS image_url TEXT;
+ALTER TABLE comments ADD COLUMN IF NOT EXISTS author_token UUID;
+ALTER TABLE comments ADD COLUMN IF NOT EXISTS is_read BOOLEAN DEFAULT FALSE;
 
 -- Create storage bucket for comment images
 INSERT INTO storage.buckets (id, name, public) 

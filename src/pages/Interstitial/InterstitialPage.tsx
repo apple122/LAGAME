@@ -45,7 +45,7 @@ const CountdownRing = styled.div`
 `
 
 const CountdownNum = styled.div`
-  font-family: 'Outfit', sans-serif; font-size: 28px; font-weight: 800; color: #fff;
+  font-family: 'Noto Sans Lao', sans-serif; font-size: 28px; font-weight: 800; color: #fff;
   position: absolute;
 `
 
@@ -55,7 +55,7 @@ const ProceedBtn = styled.button`
   background: linear-gradient(135deg, #7c3aed, #06b6d4);
   border: none; border-radius: 12px; color: #fff;
   font-size: 16px; font-weight: 700; cursor: pointer;
-  font-family: 'Outfit', sans-serif;
+  font-family: 'Noto Sans Lao', sans-serif;
   transition: opacity 0.2s, transform 0.2s;
   animation: popIn 0.3s ease;
   @keyframes popIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
@@ -116,7 +116,7 @@ export default function InterstitialPage() {
           <span style={{ fontSize: 13, color: 'rgba(148,163,184,0.6)', fontWeight: 600 }}>Preparing your download</span>
         </div>
 
-        <h2 style={{ fontFamily: 'Outfit', fontSize: 22, fontWeight: 800, color: '#fff', marginBottom: 6 }}>
+        <h2 style={{ fontFamily: 'Noto Sans Lao', fontSize: 22, fontWeight: 800, color: '#fff', marginBottom: 6 }}>
           Downloading from {cloudName}
         </h2>
         <p style={{ fontSize: 13, color: 'rgba(148,163,184,0.5)', marginBottom: 20 }}>

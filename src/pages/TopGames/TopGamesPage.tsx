@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import styled from 'styled-components'
 import { Loader2 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import { useLanguage } from '../../lib/i18n/LanguageContext'
 import type { Game } from '../../lib/supabase'
 import GameCard from '../../components/GameCard/GameCard'
 
@@ -14,7 +15,7 @@ const Banner = styled.div`
 `
 
 const BannerTitle = styled.h1`
-  font-family: 'Outfit', sans-serif; font-size: clamp(1.8rem, 5vw, 3rem);
+  font-family: 'Noto Sans Lao', sans-serif; font-size: clamp(1.8rem, 5vw, 3rem);
   font-weight: 900; color: #fff; margin-bottom: 10px;
 `
 
@@ -34,6 +35,7 @@ const GameWrap = styled.div`position: relative;`
 const Loading = styled.div`display: flex; align-items: center; justify-content: center; min-height: 300px; color: rgba(148,163,184,0.5); gap: 10px; font-size: 14px;`
 
 export default function TopGamesPage() {
+  const { t } = useLanguage()
   const [games, setGames] = useState<Game[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -71,12 +73,12 @@ export default function TopGamesPage() {
     <Page>
       <Banner>
         <div style={{ fontSize: 48, marginBottom: 12 }}>🏆</div>
-        <BannerTitle>Top PC Games</BannerTitle>
-        <p style={{ fontSize: 15, color: 'rgba(148,163,184,0.7)' }}>The 10 Best Games Selected by AI</p>
+        <BannerTitle>{t('top.title')}</BannerTitle>
+        <p style={{ fontSize: 15, color: 'rgba(148,163,184,0.7)' }}>{t('top.subtitle')}</p>
       </Banner>
 
       {loading ? (
-        <Loading><Loader2 size={20} style={{ animation: 'spin 0.8s linear infinite' }} /> Loading...</Loading>
+        <Loading><Loader2 size={20} style={{ animation: 'spin 0.8s linear infinite' }} /> {t('az.loading')}</Loading>
       ) : (
         <Grid>
           {games.map((g, i) => (

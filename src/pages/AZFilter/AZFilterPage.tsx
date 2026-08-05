@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import styled from 'styled-components'
 import { supabase } from '../../lib/supabase'
+import { useLanguage } from '../../lib/i18n/LanguageContext'
 import type { Game } from '../../lib/supabase'
 import GameCard from '../../components/GameCard/GameCard'
 import { Search, Loader2 } from 'lucide-react'
@@ -12,7 +13,7 @@ const Page = styled.div`max-width: 1400px; margin: 0 auto; padding: 32px 24px;`
 
 const PageHeader = styled.div`margin-bottom: 28px;`
 const PageTitle = styled.h1`
-  font-family: 'Outfit', sans-serif; font-size: 2rem; font-weight: 800;
+  font-family: 'Noto Sans Lao', sans-serif; font-size: 2rem; font-weight: 800;
   background: linear-gradient(135deg, #fff 40%, #9d5cf5);
   -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
   margin-bottom: 8px;
@@ -48,6 +49,7 @@ const Empty = styled.div`text-align: center; padding: 80px; color: rgba(148,163,
 const Loading = styled.div`display: flex; align-items: center; justify-content: center; min-height: 200px; color: rgba(148,163,184,0.5); gap: 10px; font-size: 14px;`
 
 export default function AZFilterPage() {
+  const { t } = useLanguage()
   const [params, setParams] = useSearchParams()
   const activeLetter = params.get('letter') || 'All'
   const searchQ = params.get('q') || ''
@@ -100,35 +102,35 @@ export default function AZFilterPage() {
   return (
     <Page>
       <PageHeader>
-        <PageTitle>🔤 A-Z Game Browser</PageTitle>
-        <p style={{ fontSize: 14, color: 'rgba(148,163,184,0.6)' }}>Browse all games alphabetically or search by name</p>
+        <PageTitle>{t('az.title')}</PageTitle>
+        <p style={{ fontSize: 14, color: 'rgba(148,163,184,0.6)' }}>{t('az.subtitle')}</p>
       </PageHeader>
 
       <SearchBar>
         <SearchIcon><Search size={16} /></SearchIcon>
         <SearchInput
-          placeholder="Search all games..."
+          placeholder={t('az.search_placeholder')}
           value={localQ}
           onChange={e => handleSearch(e.target.value)}
         />
       </SearchBar>
 
       <LetterStrip>
-        <LetterBtn $active={activeLetter === 'All' && !searchQ} onClick={() => { setLocalQ(''); setParams({}) }}>All</LetterBtn>
+        <LetterBtn $active={activeLetter === 'All' && !searchQ} onClick={() => { setLocalQ(''); setParams({}) }}>{t('az.all')}</LetterBtn>
         {AZ_LETTERS.map(l => (
           <LetterBtn key={l} $active={activeLetter === l && !searchQ} onClick={() => handleLetterClick(l)}>{l}</LetterBtn>
         ))}
       </LetterStrip>
 
       <p style={{ fontSize: 13, color: 'rgba(148,163,184,0.5)', marginBottom: 20 }}>
-        {searchQ ? `Search results for "${searchQ}"` : activeLetter === 'All' ? 'All Games' : `Games starting with "${activeLetter}"`}
-        {' · '}{games.length} found
+        {searchQ ? t('az.search_results_for').replace('{q}', searchQ) : activeLetter === 'All' ? t('az.all_games_label') : t('az.games_starting_with').replace('{letter}', activeLetter)}
+        {' · '}{games.length} {t('az.found')}
       </p>
 
       {loading ? (
-        <Loading><Loader2 size={18} style={{ animation: 'spin 0.8s linear infinite' }} /> Loading...</Loading>
+        <Loading><Loader2 size={18} style={{ animation: 'spin 0.8s linear infinite' }} /> {t('az.loading')}</Loading>
       ) : games.length === 0 ? (
-        <Empty><div style={{ fontSize: 48, marginBottom: 12 }}>🔍</div><p>No games found</p></Empty>
+        <Empty><div style={{ fontSize: 48, marginBottom: 12 }}>🔍</div><p>{t('az.no_games_found')}</p></Empty>
       ) : (
         <Grid>{games.map((g, i) => <GameCard key={g.id} game={g as any} index={i} />)}</Grid>
       )}

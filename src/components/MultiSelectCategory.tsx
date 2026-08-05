@@ -48,7 +48,7 @@ const Input = styled.input`
   color: #e2e8f0;
   font-size: 14px;
   outline: none;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Noto Sans Lao', sans-serif;
   &:focus { border-color: rgba(124, 58, 237, 0.5); }
   &::placeholder { color: rgba(148, 163, 184, 0.4); }
 `

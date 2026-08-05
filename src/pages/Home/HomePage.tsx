@@ -4,7 +4,9 @@ import styled, { keyframes, css } from 'styled-components'
 import { Filter, Gamepad2, ChevronLeft, ChevronRight, Loader2, X, SlidersHorizontal, Check, ChevronUp } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import type { Game, Category } from '../../lib/supabase'
+import { useCategoryTranslator } from '../../lib/i18n/CategoryTranslator'
 import GameCard from '../../components/GameCard/GameCard'
+import CommentSection from '../../components/CommentSection/CommentSection'
 
 const PAGE_SIZE = 100
 
@@ -35,7 +37,7 @@ const Hero = styled.div`
 `
 
 const HeroTitle = styled.h1`
-  font-family: 'Outfit', sans-serif;
+  font-family: 'Noto Sans Lao', sans-serif;
   font-size: clamp(2rem, 5vw, 3.5rem);
   font-weight: 900;
   color: #fff;
@@ -87,7 +89,7 @@ const UptimeBlock = styled.div`
 `
 
 const UptimeValue = styled.span`
-  font-family: 'Outfit', sans-serif;
+  font-family: 'Noto Sans Lao', sans-serif;
   font-size: 20px;
   font-weight: 700;
   color: #fff;
@@ -124,7 +126,7 @@ const Stat = styled.div`
 `
 
 const StatNum = styled.div`
-  font-family: 'Outfit', sans-serif;
+  font-family: 'Noto Sans Lao', sans-serif;
   font-size: 28px;
   font-weight: 800;
   background: linear-gradient(135deg, #7c3aed, #06b6d4);
@@ -165,7 +167,7 @@ const SidebarCard = styled.div`
 `
 
 const SidebarTitle = styled.h3`
-  font-family: 'Outfit', sans-serif;
+  font-family: 'Noto Sans Lao', sans-serif;
   font-size: 13px;
   font-weight: 700;
   text-transform: uppercase;
@@ -242,7 +244,7 @@ const MobileFilterBtn = styled.button<{ $active?: boolean }>`
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s;
-    font-family: 'Inter', sans-serif;
+    font-family: 'Noto Sans Lao', sans-serif;
   }
 `
 
@@ -316,7 +318,7 @@ const SheetHeader = styled.div`
 `
 
 const SheetTitle = styled.h3`
-  font-family: 'Outfit', sans-serif;
+  font-family: 'Noto Sans Lao', sans-serif;
   font-size: 16px;
   font-weight: 700;
   color: #fff;
@@ -368,7 +370,7 @@ const OptionChip = styled.button<{ $active: boolean }>`
   font-weight: ${p => p.$active ? 600 : 400};
   cursor: pointer;
   transition: all 0.15s;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Noto Sans Lao', sans-serif;
   &:hover { border-color: rgba(124,58,237,0.4); color: #fff; }
 `
 
@@ -392,7 +394,7 @@ const MobileCatBtn = styled.button<{ $active: boolean }>`
   font-weight: ${p => p.$active ? 600 : 400};
   cursor: pointer;
   transition: all 0.12s;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Noto Sans Lao', sans-serif;
   margin-bottom: 6px;
   &:hover { background: rgba(124,58,237,0.15); color: #fff; }
 `
@@ -408,7 +410,7 @@ const SheetApplyBtn = styled.button`
   color: #fff;
   font-size: 15px;
   font-weight: 700;
-  font-family: 'Outfit', sans-serif;
+  font-family: 'Noto Sans Lao', sans-serif;
   cursor: pointer;
   transition: opacity 0.2s;
   &:hover { opacity: 0.9; }
@@ -645,6 +647,8 @@ export default function HomePage() {
     setLoading(false)
   }
 
+  const { translateCategoryName } = useCategoryTranslator()
+
   return (
     <>
       {/* Hero Banner */}
@@ -692,7 +696,7 @@ export default function HomePage() {
             </CatBtn>
             {categories.map(cat => (
               <CatBtn key={cat.id} $active={selectedCat === cat.id} onClick={() => { setSelectedCat(cat.id); setPage(1) }}>
-                {cat.name}
+                {translateCategoryName(cat.name)}
                 {categoryCounts[cat.id] > 0 && (
                   <span style={{ fontSize: 11, background: selectedCat === cat.id ? 'rgba(255,255,255,0.2)' : 'rgba(124,58,237,0.2)', padding: '2px 6px', borderRadius: 6, minWidth: 20, textAlign: 'center' }}>
                     {categoryCounts[cat.id]}
@@ -760,6 +764,10 @@ export default function HomePage() {
               <PageBtn onClick={() => setPage(p => p + 1)} disabled={page === totalPages}><ChevronRight size={16} /></PageBtn>
             </Pagination>
           )}
+
+          <div style={{ marginTop: 40 }}>
+            <CommentSection type="website" isPreview={true} />
+          </div>
         </Content>
       </PageWrap>
 
@@ -811,7 +819,7 @@ export default function HomePage() {
               </MobileCatBtn>
               {categories.map(cat => (
                 <MobileCatBtn key={cat.id} $active={tmpCat === cat.id} onClick={() => setTmpCat(cat.id)}>
-                  {cat.name}
+                  {translateCategoryName(cat.name)}
                   {categoryCounts[cat.id] > 0 && (
                     <span style={{ fontSize: 11, background: tmpCat === cat.id ? 'rgba(124,58,237,0.4)' : 'rgba(124,58,237,0.2)', padding: '2px 7px', borderRadius: 6 }}>
                       {categoryCounts[cat.id]}

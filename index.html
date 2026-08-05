@@ -1,14 +1,52 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/png" href="/LOGO.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>LAPACK Game — Free PC Game Downloads</title>
-  <meta name="description" content="Download free PC games. Browse by category, filter A-Z, and find your favorite games with fast cloud download links." />
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/png" href="/LOGO.png" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LAPACK Game — Free PC Game Downloads</title>
+  <meta name="description"
+    content="Download free PC games. Browse by category, filter A-Z, and find your favorite games with fast cloud download links." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Noto+Sans+Lao:wght@100..900&family=Noto+Sans+Thai:wght@100..900&display=swap"
+    rel="stylesheet">
+
+  <style>
+    /* Hide the Google Translate banner at the top */
+    body {
+      top: 0 !important;
+    }
+
+    .skiptranslate iframe {
+      display: none !important;
+    }
+
+    #goog-gt-tt {
+      display: none !important;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Google Translate hidden widget -->
+  <div id="google_translate_element" style="display:none;"></div>
+  <script type="text/javascript">
+    function googleTranslateElementInit() {
+      new google.translate.TranslateElement({
+        pageLanguage: 'en',
+        autoDisplay: false
+      }, 'google_translate_element');
+    }
+  </script>
+  <script type="text/javascript"
+    src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+
+  <!-- App Root (translate="no" to prevent translation by default) -->
+  <div id="root" translate="no" class="notranslate"></div>
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+
 </html>

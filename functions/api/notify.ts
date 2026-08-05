@@ -55,7 +55,7 @@ export async function onRequestPost(context: any) {
     const emailHtml = `
 <!DOCTYPE html>
 <html>
-<body style="font-family: 'Inter', Arial, sans-serif; background: #0f0f1a; color: #e2e8f0; margin: 0; padding: 0;">
+<body style="font-family: 'Noto Sans Lao', Arial, sans-serif; background: #0f0f1a; color: #e2e8f0; margin: 0; padding: 0;">
   <div style="max-width: 560px; margin: 0 auto; padding: 32px 24px;">
     <div style="background: linear-gradient(135deg, #7c3aed, #06b6d4); border-radius: 12px; padding: 3px; margin-bottom: 24px;">
       <div style="background: #12121f; border-radius: 10px; padding: 24px; text-align: center;">

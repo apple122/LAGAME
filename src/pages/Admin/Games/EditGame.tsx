@@ -1,12 +1,18 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import styled from 'styled-components'
-import { ArrowLeft, Save, Loader2, Plus, Minus, CheckCircle, AlertCircle, Image, X, Wand2, Sparkles, Bot } from 'lucide-react'
+import styled, { keyframes } from 'styled-components'
+import { ArrowLeft, Save, Loader2, Plus, Minus, CheckCircle, AlertCircle, Image, X, Wand2, Sparkles, Bot, Edit2 } from 'lucide-react'
 import { supabase, uploadImage } from '../../../lib/supabase'
 import type { Category } from '../../../lib/supabase'
 import MultiSelectCategory from '../../../components/MultiSelectCategory'
 import { generateGameData } from '../../../lib/gemini'
-import { keyframes } from 'styled-components'
+import {
+  AdminPage, PageHeader, PageTitle, BackBtn,
+  Card, SectionLabel,
+  Field, Label, Input, TextArea, Select,
+  PrimaryBtn, IconBtn,
+  Alert
+} from '../adminStyles'
 
 function slugify(str: string) {
   return str.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
@@ -14,41 +20,13 @@ function slugify(str: string) {
 
 const CLOUD_OPTIONS = ['1fichier', 'Buzzheavier', 'DataNodes', 'Dropbox', 'Gofile', 'Google Drive', 'Hitfile', 'MEGA', 'MediaFire', 'Multiup', 'OneDrive', 'Pixeldrain', 'Turbobit', 'Zippyshare', 'Other']
 
-const Page = styled.div`
-  max-width: 900px;
-  margin: 0 auto;
-  padding: 0 8px;
-  @media (max-width: 480px) { padding: 0 4px; }
-`
-const BackBtn = styled.button`display: flex; align-items: center; gap: 6px; background: none; border: none; color: rgba(148,163,184,0.7); font-size: 13px; cursor: pointer; margin-bottom: 20px; &:hover { color: #fff; }`
-const FormCard = styled.div`
-  background: rgba(18,18,31,0.8); border: 1px solid rgba(124,58,237,0.15);
-  border-radius: 16px; padding: 28px;
-  @media (max-width: 600px) { padding: 16px 14px; border-radius: 12px; }
-`
-const SectionTitle = styled.h3`font-family: 'Outfit', sans-serif; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: rgba(148,163,184,0.5); margin-bottom: 16px; margin-top: 24px; &:first-child { margin-top: 0; }`
-const Field = styled.div`margin-bottom: 16px;`
-const Label = styled.label`display: block; font-size: 13px; font-weight: 600; color: rgba(148,163,184,0.8); margin-bottom: 6px;`
-const Input = styled.input`width: 100%; padding: 10px 14px; background: rgba(8,8,16,0.8); border: 1px solid rgba(124,58,237,0.2); border-radius: 8px; color: #e2e8f0; font-size: 14px; outline: none; font-family: 'Inter', sans-serif; &:focus { border-color: rgba(124,58,237,0.5); } &::placeholder { color: rgba(148,163,184,0.4); }`
-const TextArea = styled.textarea`width: 100%; padding: 10px 14px; min-height: 120px; resize: vertical; background: rgba(8,8,16,0.8); border: 1px solid rgba(124,58,237,0.2); border-radius: 8px; color: #e2e8f0; font-size: 14px; outline: none; font-family: 'Inter', sans-serif; line-height: 1.6; &:focus { border-color: rgba(124,58,237,0.5); } &::placeholder { color: rgba(148,163,184,0.4); }`
 const LinkRow = styled.div`
   display: flex; gap: 8px; margin-bottom: 8px; align-items: center;
   @media (max-width: 480px) { flex-wrap: wrap; }
 `
-const CloudSelect = styled.select`
-  padding: 9px 10px; background: rgba(8,8,16,0.8); border: 1px solid rgba(124,58,237,0.2);
-  border-radius: 8px; color: #e2e8f0; font-size: 13px; outline: none; flex-shrink: 0; width: 150px;
-  &:focus { border-color: rgba(124,58,237,0.5); }
-  @media (max-width: 480px) { width: 100%; }
-`
-const LinkInput = styled.input`flex: 1; padding: 9px 12px; background: rgba(8,8,16,0.8); border: 1px solid rgba(124,58,237,0.2); border-radius: 8px; color: #e2e8f0; font-size: 13px; outline: none; &:focus { border-color: rgba(124,58,237,0.5); } &::placeholder { color: rgba(148,163,184,0.4); }`
-const IconBtn = styled.button`width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 8px; border: 1px solid rgba(124,58,237,0.2); background: transparent; color: rgba(148,163,184,0.6); cursor: pointer; flex-shrink: 0; transition: all 0.15s; &:hover { background: rgba(239,68,68,0.1); color: #ef4444; border-color: rgba(239,68,68,0.3); }`
 const AddLinkBtn = styled.button`display: flex; align-items: center; gap: 6px; padding: 8px 14px; background: rgba(124,58,237,0.1); border: 1px dashed rgba(124,58,237,0.3); border-radius: 8px; color: rgba(148,163,184,0.7); font-size: 13px; cursor: pointer; transition: all 0.15s; &:hover { background: rgba(124,58,237,0.15); color: #fff; }`
-const SaveBtn = styled.button`display: flex; align-items: center; gap: 8px; padding: 12px 28px; margin-top: 24px; background: linear-gradient(135deg, #7c3aed, #06b6d4); border: none; border-radius: 10px; color: #fff; font-size: 15px; font-weight: 700; cursor: pointer; width: 100%; justify-content: center; font-family: 'Outfit', sans-serif; transition: opacity 0.2s; &:hover:not(:disabled) { opacity: 0.9; } &:disabled { opacity: 0.5; cursor: not-allowed; }`
-const Alert = styled.div<{ $type: 'success' | 'error' }>`display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-radius: 10px; margin-bottom: 20px; font-size: 13px; font-weight: 500; background: ${p => p.$type === 'success' ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)'}; border: 1px solid ${p => p.$type === 'success' ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'}; color: ${p => p.$type === 'success' ? '#22c55e' : '#ef4444'};`
 const SpecGrid = styled.div`display: grid; grid-template-columns: 1fr 1fr; gap: 12px; @media(max-width:600px){grid-template-columns:1fr;}`
 const TwoColGrid = styled.div`display: grid; grid-template-columns: 1fr 1fr; gap: 16px; @media(max-width:600px){grid-template-columns:1fr; gap: 0;}`
-const AiSearchRow = styled.div`display: flex; gap: 10px; width: 100%; @media (max-width: 600px) { flex-direction: column; }`
 
 const UploadBtn = styled.label`
   display: flex; align-items: center; justify-content: center; gap: 6px;
@@ -106,7 +84,7 @@ const AiGenerateBtn = styled.button<{ $loading?: boolean }>`
   background: ${p => p.$loading ? 'rgba(124,58,237,0.3)' : 'linear-gradient(135deg, #7c3aed, #a855f7)'};
   border: none; border-radius: 10px; color: #fff; font-size: 14px; font-weight: 700;
   cursor: ${p => p.$loading ? 'not-allowed' : 'pointer'};
-  white-space: nowrap; font-family: 'Outfit', sans-serif;
+  white-space: nowrap; font-family: 'Noto Sans Lao', sans-serif;
   transition: all 0.2s;
   ${p => p.$loading ? '' : '&:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(124,58,237,0.4); }'}
   animation: ${p => p.$loading ? glowPulse : 'none'} 1.5s ease-in-out infinite;
@@ -240,7 +218,7 @@ Return ONLY the raw JSON object. No markdown, no code blocks, no explanation.`
   const handleAiApply = async () => {
     if (!aiPreview) return
     setIsApplying(true)
-    
+
     setTitle(aiPreview.title || title)
     if (aiPreview.title) setSlug(slugify(aiPreview.title))
     if (aiPreview.description) setDescription(aiPreview.description)
@@ -248,11 +226,11 @@ Return ONLY the raw JSON object. No markdown, no code blocks, no explanation.`
     if (aiPreview.video_url) setVideoUrl(aiPreview.video_url)
     if (aiPreview.minimum_requirements) setMinAbout(aiPreview.minimum_requirements)
     if (aiPreview.recommended_requirements) setRecAbout(aiPreview.recommended_requirements)
-    
+
     // Fetch real images from Steam if steam_app_id is provided
     let steamCover = ''
     let steamScreenshots: string[] = []
-    
+
     if (aiPreview.steam_app_id) {
       const appId = aiPreview.steam_app_id
       // Use vertical cover image (portrait format used in game stores)
@@ -312,7 +290,7 @@ Return ONLY the raw JSON object. No markdown, no code blocks, no explanation.`
       }
       if (newCategoryIds.length > 0) setCategoryIds(prev => [...new Set([...prev, ...newCategoryIds])])
     }
-    
+
     setIsApplying(false)
     setAiPreview(null)
   }
@@ -412,57 +390,54 @@ Return ONLY the raw JSON object. No markdown, no code blocks, no explanation.`
     setSaving(false)
   }
 
-  if (loading) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 80, color: 'rgba(148,163,184,0.5)' }}><Loader2 size={20} style={{ animation: 'spin 0.8s linear infinite', marginRight: 10 }} /> Loading game...</div>
+  if (loading) return <Loader2 />
 
   return (
-    <Page>
-      <BackBtn onClick={() => navigate('/ap-admin/games')}><ArrowLeft size={14} /> Back to Games</BackBtn>
-      <h1 style={{ fontFamily: 'Outfit', fontSize: 24, fontWeight: 800, color: '#fff', marginBottom: 24 }}>✏️ Edit Game</h1>
-      {saveMsg && <Alert $type={saveMsg.type}>{saveMsg.type === 'success' ? <CheckCircle size={15} /> : <AlertCircle size={15} />}{saveMsg.text}</Alert>}
-      <FormCard>
+    <AdminPage>
+      <BackBtn onClick={() => navigate(-1)}><ArrowLeft size={14} /> กลับไปหน้าจัดการเกม</BackBtn>
+
+      <PageHeader>
+        <PageTitle>
+          <Edit2 size={24} style={{ color: '#06b6d4' }} /> Edit Game
+        </PageTitle>
+      </PageHeader>
+
+      <Card>
+        {saveMsg && <Alert $type={saveMsg.type}>{saveMsg.type === 'success' ? <CheckCircle size={15} /> : <AlertCircle size={15} />}{saveMsg.text}</Alert>}
+
         {/* ── Gemini AI Auto-Fill ──────────────────────────────── */}
-        <div style={{ marginBottom: 28 }}>
+        <div style={{ background: 'rgba(124,58,237,0.05)', border: '1px dashed rgba(124,58,237,0.3)', borderRadius: 12, padding: 20, marginBottom: 24 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-            <SectionTitle style={{ margin: 0 }}><Bot size={15} /> AI Auto-Fill</SectionTitle>
+            <span style={{ margin: 0 }}><Bot size={15} /> AI Auto-Fill</span>
             <AiBadge><Sparkles size={10} /> Powered by Gemini</AiBadge>
           </div>
           <p style={{ fontSize: 13, color: 'rgba(148,163,184,0.6)', marginBottom: 12, lineHeight: 1.6 }}>
             พิมพ์ชื่อเกม แล้วกด <strong style={{ color: '#a855f7' }}>Generate</strong> — AI จะช่วยดึงข้อมูลและเติมให้ (ไม่ต้องกรอกเองทั้งหมด)
           </p>
-          <FetchRow>
-            <AiSearchRow>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <div style={{ flex: 1, minWidth: 200 }}>
               <Input
                 placeholder="Search game..."
                 value={aiQuery}
                 onChange={e => setAiQuery(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleAiGenerate()}
-                style={{ flex: 1 }}
               />
-              <select
-                value={selectedModel}
-                onChange={e => setSelectedModel(e.target.value)}
-                style={{
-                  background: 'rgba(255,255,255,0.05)',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  color: 'white',
-                  padding: '0 12px',
-                  borderRadius: '12px',
-                  outline: 'none',
-                  cursor: 'pointer',
-                  minHeight: '40px'
-                }}
-              >
-                <option value="gemini-flash-latest" style={{ background: '#0f172a', color: 'white' }}>Flash (Latest)</option>
-                <option value="gemini-2.5-flash" style={{ background: '#0f172a', color: 'white' }}>2.5 Flash</option>
-                <option value="gemini-2.0-flash" style={{ background: '#0f172a', color: 'white' }}>2.0 Flash</option>
-                <option value="gemini-pro-latest" style={{ background: '#0f172a', color: 'white' }}>Pro (Latest)</option>
-              </select>
-              <AiGenerateBtn $loading={aiLoading} onClick={handleAiGenerate} disabled={aiLoading || !aiQuery.trim()} style={{ justifyContent: 'center' }}>
-                {aiLoading ? <Loader2 size={16} style={{ animation: 'spin 0.8s linear infinite' }} /> : <Wand2 size={16} />}
-                {aiLoading ? 'Generating...' : 'Generate'}
-              </AiGenerateBtn>
-            </AiSearchRow>
-          </FetchRow>
+            </div>
+            <Select
+              value={selectedModel}
+              onChange={e => setSelectedModel(e.target.value)}
+              style={{ width: 160, flexShrink: 0 }}
+            >
+              <option value="gemini-flash-latest">Flash (Latest)</option>
+              <option value="gemini-2.5-flash">2.5 Flash</option>
+              <option value="gemini-2.0-flash">2.0 Flash</option>
+              <option value="gemini-pro-latest">Pro (Latest)</option>
+            </Select>
+            <AiGenerateBtn $loading={aiLoading} onClick={handleAiGenerate} disabled={aiLoading || !aiQuery.trim()} style={{ flexShrink: 0 }}>
+              {aiLoading ? <Loader2 size={16} style={{ animation: 'spin 0.8s linear infinite' }} /> : <Wand2 size={16} />}
+              {aiLoading ? 'Generating...' : 'Generate'}
+            </AiGenerateBtn>
+          </div>
 
           {aiError && (
             <p style={{ fontSize: 12, color: '#ef4444', marginTop: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -502,7 +477,7 @@ Return ONLY the raw JSON object. No markdown, no code blocks, no explanation.`
           )}
         </div>
 
-        <SectionTitle>📋 Basic Info</SectionTitle>
+        <SectionLabel>📋 Basic Info</SectionLabel>
         <TwoColGrid>
           <Field><Label>Title</Label><Input value={title} onChange={e => setTitle(e.target.value)} /></Field>
           <Field><Label>File Size (Storage)</Label><Input placeholder="e.g. 50 GB" value={fileSize} onChange={e => setFileSize(e.target.value)} /></Field>
@@ -527,7 +502,7 @@ Return ONLY the raw JSON object. No markdown, no code blocks, no explanation.`
         </Field>
         <Field><Label>Description</Label><TextArea value={description} onChange={e => setDescription(e.target.value)} /></Field>
 
-        <SectionTitle><Image size={13} /> Media (Cover, Screenshots & Video)</SectionTitle>
+        <SectionLabel><Image size={13} /> Media (Cover, Screenshots & Video)</SectionLabel>
         <Field><Label>Video Trailer (YouTube URL)</Label><Input placeholder="e.g. https://www.youtube.com/watch?v=..." value={videoUrl} onChange={e => setVideoUrl(e.target.value)} /></Field>
         <Field>
           <Label>Cover Image URL (or Upload)</Label>
@@ -587,7 +562,7 @@ Return ONLY the raw JSON object. No markdown, no code blocks, no explanation.`
 
         <Field><Label style={{ display: 'flex', alignItems: 'center', gap: 8 }}><input type="checkbox" checked={isFeatured} onChange={e => setIsFeatured(e.target.checked)} /> Featured</Label></Field>
 
-        <SectionTitle>💻 System Requirements</SectionTitle>
+        <SectionLabel>💻 System Requirements</SectionLabel>
         <Field>
           <Label>Supported Platforms</Label>
           <div style={{ display: 'flex', gap: 16 }}>
@@ -618,25 +593,27 @@ Return ONLY the raw JSON object. No markdown, no code blocks, no explanation.`
           </div>
         </SpecGrid>
 
-        <SectionTitle>☁️ Download Links</SectionTitle>
+        <SectionLabel>☁️ Download Links</SectionLabel>
         {links.map((link, i) => (
           <LinkRow key={i}>
-            <CloudSelect value={link.platform || 'windows'} onChange={e => updateLink(i, 'platform', e.target.value)} style={{ width: 110 }}>
+            <Select value={link.platform || 'windows'} onChange={e => updateLink(i, 'platform', e.target.value)} style={{ width: 110, padding: '9px 12px' }}>
               <option value="windows">Windows</option>
               <option value="macos">macOS</option>
-            </CloudSelect>
-            <CloudSelect value={link.cloud_name} onChange={e => updateLink(i, 'cloud_name', e.target.value)}>{CLOUD_OPTIONS.map(o => <option key={o}>{o}</option>)}</CloudSelect>
-            <LinkInput placeholder="https://..." value={link.url} onChange={e => updateLink(i, 'url', e.target.value)} />
+            </Select>
+            <Select value={link.cloud_name} onChange={e => updateLink(i, 'cloud_name', e.target.value)} style={{ width: 150, padding: '9px 12px' }}>
+              {CLOUD_OPTIONS.map(o => <option key={o}>{o}</option>)}
+            </Select>
+            <Input placeholder="https://..." value={link.url} onChange={e => updateLink(i, 'url', e.target.value)} />
             {links.length > 1 && <IconBtn onClick={() => removeLink(i)}><Minus size={14} /></IconBtn>}
           </LinkRow>
         ))}
         <AddLinkBtn onClick={addLink}><Plus size={14} /> Add Link</AddLinkBtn>
 
-        <SaveBtn onClick={handleSave} disabled={saving}>
+        <PrimaryBtn onClick={handleSave} disabled={saving} style={{ width: '100%', justifyContent: 'center', marginTop: 24 }}>
           {saving ? <Loader2 size={16} style={{ animation: 'spin 0.8s linear infinite' }} /> : <Save size={16} />}
           {saving ? 'Saving...' : 'Save Changes'}
-        </SaveBtn>
-      </FormCard>
-    </Page>
+        </PrimaryBtn>
+      </Card>
+    </AdminPage>
   )
 }

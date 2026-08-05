@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import styled from 'styled-components'
+import styled, { keyframes } from 'styled-components'
 import { Gamepad2, Shield, AlertCircle, CheckCircle } from 'lucide-react'
 import { useAdminAuth } from '../../context/AdminAuthContext'
 const Page = styled.div`
@@ -31,18 +31,24 @@ const GlowOrb = styled.div`
   pointer-events: none;
 `
 
+const fadeScale = keyframes`
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+`
+
 const Modal = styled.div`
   position: relative;
   z-index: 10;
   width: 420px;
   max-width: calc(100vw - 32px);
-  background: rgba(14, 14, 26, 0.95);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(124, 58, 237, 0.3);
-  border-radius: 24px;
-  padding: 40px 36px 36px;
-  box-shadow: 0 0 60px rgba(124,58,237,0.2);
+  background: rgba(14, 14, 26, 0.7);
+  backdrop-filter: blur(40px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 28px;
+  padding: 48px 40px 40px;
+  box-shadow: 0 30px 60px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1);
   text-align: center;
+  animation: ${fadeScale} 0.5s cubic-bezier(0.16, 1, 0.3, 1);
 `
 
 const LogoWrap = styled.div`
@@ -54,7 +60,7 @@ const LogoWrap = styled.div`
 `
 
 const LogoText = styled.span`
-  font-family: 'Outfit', sans-serif;
+  font-family: 'Noto Sans Lao', sans-serif;
   font-size: 26px;
   font-weight: 800;
   background: linear-gradient(135deg, #7c3aed, #06b6d4);
@@ -82,13 +88,13 @@ const PinDot = styled.div<{ $filled: boolean; $error: boolean; $success: boolean
   border-radius: 50%;
   background: ${p =>
     p.$success ? '#22c55e' :
-    p.$error ? '#ef4444' :
-    p.$filled ? '#7c3aed' : 'rgba(124,58,237,0.2)'
+      p.$error ? '#ef4444' :
+        p.$filled ? '#7c3aed' : 'rgba(124,58,237,0.2)'
   };
   border: 2px solid ${p =>
     p.$success ? '#22c55e' :
-    p.$error ? '#ef4444' :
-    p.$filled ? '#7c3aed' : 'rgba(124,58,237,0.3)'
+      p.$error ? '#ef4444' :
+        p.$filled ? '#7c3aed' : 'rgba(124,58,237,0.3)'
   };
   transition: all 0.2s;
   transform: scale(${p => p.$filled ? 1.1 : 1});
@@ -111,7 +117,7 @@ const Key = styled.button<{ $wide?: boolean }>`
   color: #e2e8f0;
   font-size: 18px;
   font-weight: 600;
-  font-family: 'Outfit', sans-serif;
+  font-family: 'Noto Sans Lao', sans-serif;
   cursor: pointer;
   transition: all 0.15s;
   &:hover { background: rgba(124,58,237,0.25); border-color: rgba(124,58,237,0.4); transform: scale(1.02); }
@@ -169,7 +175,7 @@ export default function AdminGateway() {
     return () => window.removeEventListener('keydown', handler)
   }, [pin, error, success])
 
-  const KEYS = ['1','2','3','4','5','6','7','8','9']
+  const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9']
 
   return (
     <Page>
@@ -187,7 +193,7 @@ export default function AdminGateway() {
         <Subtitle>Enter your 4-digit PIN to continue</Subtitle>
 
         <PinDisplay>
-          {[0,1,2,3].map(i => (
+          {[0, 1, 2, 3].map(i => (
             <PinDot key={i} $filled={i < pin.length} $error={error} $success={success} />
           ))}
         </PinDisplay>

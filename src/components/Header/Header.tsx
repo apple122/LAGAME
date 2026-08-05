@@ -4,6 +4,8 @@ import styled, { keyframes } from 'styled-components'
 import { Search, Menu, X, ChevronDown, Trophy, AlignLeft, MessageSquare } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import type { Game } from '../../lib/supabase'
+import LanguageSwitcher from '../LanguageSwitcher/LanguageSwitcher'
+import { useLanguage } from '../../lib/i18n/LanguageContext'
 
 // ── Styled Components ──────────────────────────────────────────────────
 const HeaderWrap = styled.header`
@@ -25,6 +27,14 @@ const Nav = styled.nav`
   display: flex;
   align-items: center;
   gap: 32px;
+  @media (max-width: 900px) {
+    padding: 0 18px;
+    gap: 24px;
+  }
+  @media (max-width: 820px) {
+    padding: 0 14px;
+    gap: 18px;
+  }
   @media (max-width: 768px) {
     padding: 0 16px;
     gap: 16px;
@@ -35,21 +45,74 @@ const Logo = styled(Link)`
   display: flex;
   align-items: center;
   gap: 10px;
-  font-family: 'Outfit', sans-serif;
+  flex-shrink: 0;
+  &:hover { opacity: 0.9; }
+
+  img {
+    height: 60px;
+    width: auto;
+    border-radius: 4px;
+    @media (max-width: 900px) {
+      height: 54px;
+    }
+    @media (max-width: 768px) {
+      height: 48px;
+    }
+  }
+
+  @media (max-width: 768px) {
+    gap: 8px;
+  }
+`
+
+const LogoText = styled.div`
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+`
+
+const LogoTitle = styled.span`
+  font-family: 'Noto Sans Lao', sans-serif;
   font-size: 22px;
   font-weight: 800;
   background: linear-gradient(135deg, #7c3aed, #06b6d4);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  flex-shrink: 0;
-  &:hover { opacity: 0.9; }
+  @media (max-width: 900px) {
+    font-size: 20px;
+  }
+  @media (max-width: 768px) {
+    font-size: 18px;
+  }
+`
+
+const LogoSubtitle = styled.span`
+  font-size: 10px;
+  font-weight: 700;
+  color: #94a3b8;
+  letter-spacing: 1px;
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  @media (max-width: 900px) {
+    font-size: 9px;
+    gap: 3px;
+  }
+  @media (max-width: 768px) {
+    font-size: 9px;
+    gap: 3px;
+  }
 `
 
 const NavLinks = styled.div`
   display: flex;
   align-items: center;
   gap: 4px;
+  @media (max-width: 900px) {
+    gap: 2px;
+  }
   @media (max-width: 768px) { display: none; }
 `
 
@@ -65,6 +128,10 @@ const NavLink = styled(Link) <{ $active?: boolean }>`
   align-items: center;
   gap: 6px;
   &:hover { background: rgba(124,58,237,0.15); color: #fff; }
+  @media (max-width: 900px) {
+    padding: 7px 12px;
+    font-size: 13px;
+  }
 `
 
 const DropdownTrigger = styled.div<{ $active?: boolean }>`
@@ -81,6 +148,10 @@ const DropdownTrigger = styled.div<{ $active?: boolean }>`
   transition: all 0.2s;
   position: relative;
   &:hover { background: rgba(124,58,237,0.15); color: #fff; }
+  @media (max-width: 900px) {
+    padding: 7px 12px;
+    font-size: 13px;
+  }
 `
 
 const dropIn = keyframes`
@@ -132,6 +203,14 @@ const SearchWrap = styled.div<{ $expanded?: boolean }>`
   position: relative;
   margin-left: auto;
 
+  @media (max-width: 900px) {
+    max-width: 280px;
+  }
+
+  @media (max-width: 820px) {
+    max-width: 240px;
+  }
+
   @media (max-width: 768px) {
     position: ${p => p.$expanded ? 'fixed' : 'relative'};
     ${p => p.$expanded ? `
@@ -163,9 +242,19 @@ const SearchInput = styled.input<{ $expanded?: boolean }>`
   font-size: 14px;
   outline: none;
   transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
-  font-family: 'Inter', sans-serif;
+  font-family: 'Noto Sans Lao', sans-serif;
   &:focus { border-color: rgba(124,58,237,0.5); box-shadow: 0 0 0 3px rgba(124,58,237,0.12); }
   &::placeholder { color: rgba(148,163,184,0.5); }
+
+  @media (max-width: 900px) {
+    font-size: 13px;
+    padding: 8px 14px 8px 40px;
+  }
+
+  @media (max-width: 820px) {
+    font-size: 12px;
+    padding: 8px 12px 8px 36px;
+  }
 
   @media (max-width: 768px) {
     ${p => p.$expanded ? `
@@ -309,6 +398,7 @@ const AZ_LETTERS = ['#', ...Array.from({ length: 26 }, (_, i) => String.fromChar
 export default function Header() {
   const navigate = useNavigate()
   const location = useLocation()
+  const { t } = useLanguage()
   const [searchQ, setSearchQ] = useState('')
   const [searchResults, setSearchResults] = useState<Game[]>([])
   const [searching, setSearching] = useState(false)
@@ -357,41 +447,36 @@ export default function Header() {
       <HeaderWrap>
         <Nav>
           <Logo to="/">
-            <img src="/LOGO.png" alt="LAPACK Logo" style={{ height: 60, width: 'auto', borderRadius: 4 }} />
-            <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-              <span style={{ lineHeight: 1 }}>LAPACK</span>
-              <span style={{
-                fontSize: 10, fontWeight: 700, color: '#94a3b8',
-                letterSpacing: 1, marginTop: 2, display: 'flex', alignItems: 'center', gap: 4,
-                WebkitTextFillColor: '#94a3b8'
-              }}>
+            <img src="/LOGO.png" alt="LAPACK Logo" />
+            <LogoText>
+              <LogoTitle>LAPACK</LogoTitle>
+              <LogoSubtitle>
                 LAOS 🇱🇦
                 <img src="/LAOS.png" alt="LAPACK LAOS" style={{ height: 12, width: 'auto', borderRadius: 4 }} />
-
-              </span>
-            </div>
+              </LogoSubtitle>
+            </LogoText>
           </Logo>
 
           <NavLinks>
-            <NavLink to="/" $active={location.pathname === '/'}>Home</NavLink>
+            <NavLink to="/" $active={location.pathname === '/'}>{t('nav.home')}</NavLink>
 
             {/* A-Z Dropdown */}
             <div ref={azRef} style={{ position: 'relative' }}>
               <DropdownTrigger $active={isActive('/az-filter')} onClick={() => setAzOpen(v => !v)}>
                 <AlignLeft size={15} />
-                A-Z Filter
+                {t('nav.az_filter')}
                 <ChevronDown size={14} style={{ transition: '0.2s', transform: azOpen ? 'rotate(180deg)' : '' }} />
               </DropdownTrigger>
               {azOpen && (
                 <Dropdown>
-                  <p style={{ fontSize: 11, color: 'rgba(148,163,184,0.6)', marginBottom: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Browse by Letter</p>
+                  <p style={{ fontSize: 11, color: 'rgba(148,163,184,0.6)', marginBottom: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{t('nav.browse_az')}</p>
                   <AZGrid>
                     {AZ_LETTERS.map(l => (
                       <AZBtn key={l} to={`/az-filter?letter=${l}`}>{l}</AZBtn>
                     ))}
                   </AZGrid>
                   <div style={{ marginTop: 10, borderTop: '1px solid rgba(124,58,237,0.15)', paddingTop: 10 }}>
-                    <NavLink to="/az-filter" style={{ fontSize: 13 }}>View All A-Z →</NavLink>
+                    <NavLink to="/az-filter" style={{ fontSize: 13 }}>{t('nav.view_all_az')}</NavLink>
                   </div>
                 </Dropdown>
               )}
@@ -399,12 +484,12 @@ export default function Header() {
 
             <NavLink to="/top-games" $active={isActive('/top-games')}>
               <Trophy size={15} />
-              Top PC Games
+              {t('nav.top_games')}
             </NavLink>
 
             <NavLink to="/comments" $active={isActive('/comments')}>
               <MessageSquare size={15} />
-              Guestbook
+              {t('nav.guestbook')}
             </NavLink>
           </NavLinks>
 
@@ -417,7 +502,7 @@ export default function Header() {
             <SearchInput
               ref={searchInputRef}
               $expanded={searchExpanded}
-              placeholder="Search games..."
+              placeholder={t('common.search')}
               value={searchQ}
               onFocus={() => setSearchExpanded(true)}
               onChange={e => setSearchQ(e.target.value)}
@@ -449,6 +534,9 @@ export default function Header() {
               </Loading>
             )}
           </SearchWrap>
+
+          {/* Language Switcher */}
+          <LanguageSwitcher />
 
           {/* Mobile toggle */}
           <MobileMenuBtn onClick={() => setMobileOpen(v => !v)}>

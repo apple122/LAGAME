@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import styled from 'styled-components'
 import { Download, Eye, Monitor, Apple } from 'lucide-react'
 import type { Game } from '../../lib/supabase'
+import { useCategoryTranslator } from '../../lib/i18n/CategoryTranslator'
 
 const Card = styled(Link)`
   display: block;
@@ -77,7 +78,7 @@ const BodySpacer = styled.div`
 `
 
 const Title = styled.h3`
-  font-family: 'Outfit', sans-serif;
+  font-family: 'Noto Sans Lao', sans-serif;
   font-size: 15px;
   font-weight: 700;
   color: #e2e8f0;
@@ -146,6 +147,7 @@ type Props = {
 }
 
 export default function GameCard({ game }: Props) {
+  const { translateCategoryName } = useCategoryTranslator()
   return (
     <Card to={`/game/${game.slug}`}>
       <CoverWrap>
@@ -167,7 +169,7 @@ export default function GameCard({ game }: Props) {
         <Title title={game.title}>{game.title}</Title>
         <Meta>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <CategoryBadge>{game.category?.name || 'Game'}</CategoryBadge>
+            <CategoryBadge>{translateCategoryName(game.category?.name || 'Game')}</CategoryBadge>
             {game.system_requirements?.platforms && game.system_requirements.platforms.length > 0 && (
               <div style={{ display: 'flex', gap: 8, color: 'rgba(148,163,184,0.7)', fontSize: 11, fontWeight: 600 }}>
                 {game.system_requirements.platforms.includes('windows') && <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}><Monitor size={12} /> Win</div>}

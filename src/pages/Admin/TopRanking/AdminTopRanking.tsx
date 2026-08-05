@@ -2,23 +2,14 @@ import { useState, useEffect } from 'react'
 import styled, { keyframes, css } from 'styled-components'
 import { Search, RefreshCw, Trophy, AlertTriangle, CalendarClock, Zap, Check, X, ExternalLink } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
+import {
+  AdminPage, PageHeader, PageTitle, PageSubTitle,
+  Card,
+  SecondaryBtn,
+  Alert
+} from '../adminStyles'
 
 const fadeIn = keyframes`from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); }`
-
-const Container = styled.div`max-width: 960px; color: #e2e8f0;`
-
-const Header = styled.div`
-  display: flex; justify-content: space-between; align-items: flex-end;
-  margin-bottom: 24px;
-  @media (max-width: 600px) { flex-direction: column; align-items: flex-start; gap: 16px; }
-`
-
-const Title = styled.h1`
-  font-family: 'Outfit', sans-serif; font-size: 28px; font-weight: 800; color: #fff;
-  display: flex; align-items: center; gap: 12px; margin: 0 0 8px 0;
-`
-
-const SubTitle = styled.p`margin: 0; color: rgba(148,163,184,0.7); font-size: 14px;`
 
 const BtnRow = styled.div`display: flex; gap: 10px; flex-wrap: wrap;`
 
@@ -29,8 +20,8 @@ const FetchBtn = styled.button`
   color: #fff; font-weight: 600; font-size: 14px;
   cursor: pointer; transition: all 0.2s;
   box-shadow: 0 4px 12px rgba(124,58,237,0.3);
-  &:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(124,58,237,0.4); }
-  &:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+  &:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(124,58,237,0.4); }
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
 `
 
 const SmallBtn = styled.button<{ $variant?: 'success' | 'danger' | 'warning' }>`
@@ -52,11 +43,7 @@ const SmallBtn = styled.button<{ $variant?: 'success' | 'danger' | 'warning' }>`
   &:disabled { opacity: 0.5; cursor: not-allowed; }
 `
 
-const Card = styled.div`
-  background: rgba(12,12,22,0.6); backdrop-filter: blur(12px);
-  border: 1px solid rgba(124,58,237,0.15); border-radius: 16px;
-  padding: 24px; margin-bottom: 24px;
-`
+
 
 const PreviewCard = styled(Card)`
   border-color: rgba(6,182,212,0.3);
@@ -239,27 +226,29 @@ export default function AdminTopRanking() {
   }
 
   return (
-    <Container>
-      <Header>
+    <AdminPage>
+      <PageHeader>
         <div>
-          <Title><Trophy size={28} color="#f59e0b" /> Top Ranking</Title>
-          <SubTitle>ดึงข้อมูลอันดับเกมจาก SteamSpy → จับคู่กับเกมในระบบ → ยืนยันและบันทึก</SubTitle>
+          <PageTitle>
+            <Trophy size={26} style={{ color: '#f59e0b' }} /> Top Ranking
+          </PageTitle>
+          <PageSubTitle>ดึงอันดับจาก SteamSpy → จับคู่กับเกมในระบบ → บันทึก</PageSubTitle>
         </div>
         <BtnRow>
-          <SmallBtn $variant="warning" onClick={clearAllCooldowns} disabled={clearing}>
+          <SecondaryBtn onClick={clearAllCooldowns} disabled={clearing}>
             <Zap size={14} /> {clearing ? 'กำลังล้าง...' : 'ล้าง API Cooldown'}
-          </SmallBtn>
+          </SecondaryBtn>
           <FetchBtn onClick={fetchPreview} disabled={fetching || saving}>
-            {fetching ? <RefreshCw size={16} /> : <Search size={16} />}
+            {fetching ? <RefreshCw size={16} style={{ animation: 'spin 0.8s linear infinite' }} /> : <Search size={16} />}
             {fetching ? 'กำลังค้นหา...' : 'ค้นหาอันดับจาก Steam'}
           </FetchBtn>
         </BtnRow>
-      </Header>
+      </PageHeader>
 
       {error && (
-        <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid #ef4444', color: '#ef4444', padding: '12px 16px', borderRadius: 12, marginBottom: 24, display: 'flex', alignItems: 'center', gap: 10 }}>
-          <AlertTriangle size={18} /> {error}
-        </div>
+        <Alert $type="error">
+          <AlertTriangle size={16} /> {error}
+        </Alert>
       )}
 
       {/* Preview section */}
@@ -358,6 +347,6 @@ export default function AdminTopRanking() {
           </List>
         )}
       </Card>
-    </Container>
+      </AdminPage>
   )
 }

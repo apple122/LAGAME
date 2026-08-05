@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabase'
 import { sendChatMessage } from '../../lib/chatService'
 import type { ChatMessage } from '../../lib/chatService'
 import { detectPlatform } from '../../lib/analytics'
+import { useLanguage } from '../../lib/i18n/LanguageContext'
 
 // ── Keyframes ─────────────────────────────────────────────────────
 const slideUp = keyframes`from { opacity: 0; transform: translateY(24px) scale(0.96); } to { opacity: 1; transform: translateY(0) scale(1); }`
@@ -67,7 +68,7 @@ const AvatarWrap = styled.div`
   flex-shrink: 0; font-size: 20px; box-shadow: 0 4px 12px rgba(124,58,237,0.4);
 `
 const HeaderInfo = styled.div`flex: 1;`
-const HeaderName = styled.div`font-family: 'Outfit', sans-serif; font-size: 15px; font-weight: 700; color: #fff;`
+const HeaderName = styled.div`font-family: 'Noto Sans Lao', sans-serif; font-size: 15px; font-weight: 700; color: #fff;`
 const StatusDot = styled.div<{ $support?: boolean }>`
   display: flex; align-items: center; gap: 5px;
   font-size: 11px; color: rgba(148,163,184,0.7); margin-top: 1px;
@@ -150,7 +151,7 @@ const WelcomeCard = styled.div`
   border-radius: 14px; padding: 16px; text-align: center; animation: ${fadeIn} 0.4s ease;
 `
 const WelcomeEmoji = styled.div`font-size: 36px; margin-bottom: 8px;`
-const WelcomeTitle = styled.div`font-family: 'Outfit', sans-serif; font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 6px;`
+const WelcomeTitle = styled.div`font-family: 'Noto Sans Lao', sans-serif; font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 6px;`
 const WelcomeText = styled.div`font-size: 12px; color: rgba(148,163,184,0.7); line-height: 1.5;`
 const QuickBtns = styled.div`display: flex; flex-direction: column; gap: 6px; margin-top: 10px;`
 const QuickBtn = styled.button`
@@ -166,7 +167,7 @@ const NameForm = styled.div`
 const NameInput = styled.input`
   width: 100%; background: rgba(255,255,255,0.05); border: 1px solid rgba(124,58,237,0.2);
   border-radius: 10px; color: #e2e8f0; font-size: 14px; padding: 10px 13px;
-  font-family: 'Inter', sans-serif; outline: none; box-sizing: border-box;
+  font-family: 'Noto Sans Lao', sans-serif; outline: none; box-sizing: border-box;
   &::placeholder { color: rgba(148,163,184,0.4); }
   &:focus { border-color: rgba(124,58,237,0.5); }
 `
@@ -175,7 +176,7 @@ const NameInput = styled.input`
 const InputArea = styled.div`padding: 12px 14px; border-top: 1px solid rgba(124,58,237,0.12); display: flex; gap: 8px; align-items: flex-end;`
 const TextArea = styled.textarea`
   flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(124,58,237,0.2); border-radius: 12px;
-  color: #e2e8f0; font-size: 13.5px; padding: 10px 13px; font-family: 'Inter', sans-serif;
+  color: #e2e8f0; font-size: 13.5px; padding: 10px 13px; font-family: 'Noto Sans Lao', sans-serif;
   resize: none; outline: none; max-height: 100px; min-height: 40px; transition: border-color 0.2s; line-height: 1.5;
   &::placeholder { color: rgba(148,163,184,0.4); }
   &:focus { border-color: rgba(124,58,237,0.5); box-shadow: 0 0 0 3px rgba(124,58,237,0.08); }
@@ -208,10 +209,11 @@ const Spinner = styled.div`
   animation: ${spin} 0.7s linear infinite;
 `
 
-const QUICK_QUESTIONS = ['🎮 มีเกมอะไรแนะนำบ้าง?', '📥 วิธีดาวน์โหลดเกม?', '💰 เว็บนี้ฟรีไหม?']
+// QUICK_QUESTIONS now generated per-locale inside component using t()
 
 // ══════════════════════════════════════════════════════════════════
 export default function ChatBot() {
+  const { t } = useLanguage()
   const [open, setOpen] = useState(false)
   const [mode, setMode] = useState<AppMode>('ai')
   const [hasUnread, setHasUnread] = useState(false)
@@ -236,6 +238,9 @@ export default function ChatBot() {
   const supportTextRef = useRef<HTMLTextAreaElement>(null)
   const realtimeRef = useRef<any>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Localized quick questions
+  const QUICK_QUESTIONS = [t('chat.quick_q1'), t('chat.quick_q2'), t('chat.quick_q3')]
 
   // ── Fetch site stats ─────────────────────────────────────────────
   useEffect(() => {
@@ -274,20 +279,37 @@ export default function ChatBot() {
 
   // ── Realtime subscription for support ────────────────────────────
   const subscribeSupport = (sessionId: string) => {
-    if (realtimeRef.current) realtimeRef.current.unsubscribe()
-    realtimeRef.current = (supabase as any)
-      .channel(`support_${sessionId}`)
-      .on('postgres_changes', {
-        event: 'INSERT', schema: 'public', table: 'support_messages',
-        filter: `session_id=eq.${sessionId}`
-      }, (payload: any) => {
-        setSupportMessages(prev => {
-          if (prev.find(m => m.id === payload.new.id)) return prev
-          if (payload.new.role === 'admin' && !open) setHasUnread(true)
-          return [...prev, payload.new]
+    try {
+      // cleanup previous channel properly
+      if (realtimeRef.current) {
+        try {
+          // supabase library may expose removeChannel
+          if ((supabase as any).removeChannel) (supabase as any).removeChannel(realtimeRef.current)
+          else if (realtimeRef.current.unsubscribe) realtimeRef.current.unsubscribe()
+        } catch (e) { }
+        realtimeRef.current = null
+      }
+
+      const ch = (supabase as any)
+        .channel(`support_${sessionId}`)
+        .on('postgres_changes', {
+          event: 'INSERT', schema: 'public', table: 'support_messages',
+          filter: `session_id=eq.${sessionId}`
+        }, (payload: any) => {
+          setSupportMessages(prev => {
+            if (prev.find(m => m.id === payload.new.id)) return prev
+            if (payload.new.role === 'admin' && !open) setHasUnread(true)
+            return [...prev, payload.new]
+          })
         })
-      })
-      .subscribe()
+
+      // subscribe and keep ref
+      ch.subscribe()
+      realtimeRef.current = ch
+    } catch (e) {
+      // swallow errors to avoid crashing UI
+      console.warn('subscribeSupport failed', e)
+    }
   }
 
   useEffect(() => { if (open && mode === 'support') setHasUnread(false) }, [open, mode])
@@ -353,7 +375,10 @@ export default function ChatBot() {
   }
 
   const updateSupportLastSeen = async (id: string) => {
-    await (supabase as any).from('support_sessions').update({ last_seen: new Date().toISOString() }).eq('id', id)
+    await (supabase as any).from('support_sessions').update({ 
+      last_seen: new Date().toISOString(),
+      is_read_by_admin: false 
+    }).eq('id', id)
   }
 
   // ── Upload file ──────────────────────────────────────────────────
@@ -364,10 +389,10 @@ export default function ChatBot() {
     if (fileInputRef.current) fileInputRef.current.value = ''
 
     // Check size 2MB
-    if (file.size > 2 * 1024 * 1024) { alert('ไฟล์มีขนาดเกิน 2MB'); return }
+    if (file.size > 2 * 1024 * 1024) { alert(t('chat.file_too_large')); return }
 
     if (supportPhase === 'naming' || !supportSessionId) {
-      alert('กรุณาส่งข้อความแรกก่อนแนบไฟล์'); return
+      alert(t('chat.send_first_before_attach')); return
     }
 
     setSupportSending(true)
@@ -375,7 +400,7 @@ export default function ChatBot() {
     const fileName = `${supportSessionId}/${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`
 
     const { error } = await supabase.storage.from('chat_attachments').upload(fileName, file)
-    if (error) { alert('อัปโหลดไฟล์ไม่สำเร็จ'); setSupportSending(false); return }
+    if (error) { alert(t('chat.upload_failed')); setSupportSending(false); return }
 
     const { data: urlData } = supabase.storage.from('chat_attachments').getPublicUrl(fileName)
     const type = file.type.startsWith('image/') ? 'image' : 'file'
@@ -407,7 +432,7 @@ export default function ChatBot() {
       setAiMessages(prev => [...prev, { role: 'assistant', content: reply }])
     } catch (e: any) {
       const isQuota = e.message?.includes('QUOTA_EXCEEDED')
-      setAiMessages(prev => [...prev, { role: 'assistant' as any, content: isQuota ? '⏳ ระบบยุ่งชั่วคราว กรุณาลองใหม่ภายหลัง' : '❌ เกิดข้อผิดพลาด กรุณาลองใหม่', _isError: true } as any])
+      setAiMessages(prev => [...prev, { role: 'assistant' as any, content: isQuota ? t('chat.ai_quota') : t('chat.ai_error'), _isError: true } as any])
     }
     setAiLoading(false)
   }, [aiInput, aiMessages, aiLoading, gameCount, totalViews])
@@ -415,18 +440,18 @@ export default function ChatBot() {
   const autoResize = (el: HTMLTextAreaElement) => { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 100) + 'px' }
 
   const deleteAiMessage = (index: number) => {
-    if (!confirm('ต้องการลบข้อความนี้ใช่หรือไม่?')) return
+    if (!confirm(t('chat.delete_confirm'))) return
     setAiMessages(prev => prev.filter((_, i) => i !== index))
   }
 
   const deleteSupportMessage = async (id: string) => {
-    if (!confirm('ต้องการลบข้อความนี้ใช่หรือไม่?')) return
+    if (!confirm(t('chat.delete_confirm'))) return
     setSupportMessages(prev => prev.filter(m => m.id !== id))
     await supabase.from('support_messages').delete().eq('id', id)
   }
 
   const resetSupport = () => {
-    if (!confirm('ต้องการเริ่มการสนทนาใหม่?')) return
+    if (!confirm(t('chat.reset_confirm'))) return
     localStorage.removeItem(SUPPORT_TOKEN_KEY)
     if (realtimeRef.current) realtimeRef.current.unsubscribe()
     setSupportSessionId(null); setSupportMessages([]); setNameInput(''); setSupportPhase('naming')
@@ -440,14 +465,14 @@ export default function ChatBot() {
           {/* Header */}
           <Header>
             <AvatarWrap>{mode === 'support' ? '🎧' : '🤖'}</AvatarWrap>
-            <HeaderInfo>
-              <HeaderName>{mode === 'support' ? 'Support Chat' : 'Labot — AI Assistant'}</HeaderName>
-              <StatusDot $support={mode === 'support'}>
-                {mode === 'support' ? 'ส่งข้อความถึง Admin' : 'Online · LAPACK Game Hub'}
-              </StatusDot>
-            </HeaderInfo>
+              <HeaderInfo>
+                <HeaderName>{mode === 'support' ? t('chat.support_title') : t('chat.ai_title')}</HeaderName>
+                <StatusDot $support={mode === 'support'}>
+                  {mode === 'support' ? t('chat.status_support') : t('chat.status_online')}
+                </StatusDot>
+              </HeaderInfo>
             <HeaderActions>
-              <ActionBtn onClick={() => setOpen(false)} title="ปิดหน้าต่าง" $danger>
+              <ActionBtn onClick={() => setOpen(false)} title={t('chat.close_window')} $danger>
                 <X size={15} />
               </ActionBtn>
             </HeaderActions>
@@ -456,10 +481,10 @@ export default function ChatBot() {
           {/* Mode Tabs */}
           <Tabs>
             <Tab $active={mode === 'ai'} onClick={() => setMode('ai')}>
-              <Bot size={13} /> AI Chat
+              <Bot size={13} /> {t('chat.tab_ai')}
             </Tab>
             <Tab $active={mode === 'support'} onClick={() => { setMode('support'); setHasUnread(false) }}>
-              <Headphones size={13} /> ติดต่อ Admin
+              <Headphones size={13} /> {t('chat.tab_support')}
               {hasUnread && <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#ef4444', flexShrink: 0 }} />}
             </Tab>
           </Tabs>
@@ -471,8 +496,8 @@ export default function ChatBot() {
                 {aiMessages.length === 0 && (
                   <WelcomeCard>
                     <WelcomeEmoji>🎮</WelcomeEmoji>
-                    <WelcomeTitle>สวัสดี! ฉันชื่อ Labot</WelcomeTitle>
-                    <WelcomeText>ผู้ช่วย AI ของ LAPACK Game Hub 🇱🇦<br />ถามอะไรก็ได้เกี่ยวกับเว็บไซต์และเกมได้เลย!</WelcomeText>
+                    <WelcomeTitle>{t('chat.welcome_title')}</WelcomeTitle>
+                    <WelcomeText dangerouslySetInnerHTML={{ __html: t('chat.welcome_text').replace(/\n/g, '<br/>') }} />
                     <QuickBtns>
                       {QUICK_QUESTIONS.map(q => <QuickBtn key={q} onClick={() => sendAiMessage(q)}>{q}</QuickBtn>)}
                     </QuickBtns>
@@ -484,11 +509,11 @@ export default function ChatBot() {
                       {(msg as any)._isError && <AlertCircle size={14} style={{ flexShrink: 0, marginTop: 2 }} />}
                       {msg.content}
                     </Bubble>
-                    {msg.role === 'user' && (
-                      <MsgDeleteBtn className="msg-delete" onClick={() => deleteAiMessage(i)} title="ลบข้อความ">
-                        <Trash2 size={13} />
-                      </MsgDeleteBtn>
-                    )}
+                      {msg.role === 'user' && (
+                        <MsgDeleteBtn className="msg-delete" onClick={() => deleteAiMessage(i)} title={t('chat.delete_confirm')}>
+                          <Trash2 size={13} />
+                        </MsgDeleteBtn>
+                      )}
                   </BubbleWrap>
                 ))}
                 {aiLoading && <TypingBubble $role="assistant"><Dot $delay={0} /><Dot $delay={200} /><Dot $delay={400} /></TypingBubble>}
@@ -514,13 +539,10 @@ export default function ChatBot() {
                 {supportPhase === 'naming' && (
                   <NameForm>
                     <WelcomeEmoji>🎧</WelcomeEmoji>
-                    <WelcomeTitle>ติดต่อ Admin</WelcomeTitle>
-                    <WelcomeText style={{ marginBottom: 14 }}>
-                      พิมพ์ข้อความแล้ว Admin จะตอบกลับโดยเร็วที่สุด 📬<br />
-                      ข้อความของคุณจะถูกบันทึกไว้
-                    </WelcomeText>
+                    <WelcomeTitle>{t('chat.support_title')}</WelcomeTitle>
+                    <WelcomeText style={{ marginBottom: 14 }} dangerouslySetInnerHTML={{ __html: t('chat.welcome_text').replace(/\n/g, '<br/>') }} />
                     <NameInput
-                      placeholder="ชื่อของคุณ (ไม่บังคับ)"
+                      placeholder={t('chat.name_placeholder')}
                       value={nameInput}
                       onChange={e => setNameInput(e.target.value)}
                       onKeyDown={e => { if (e.key === 'Enter') supportTextRef.current?.focus() }}
@@ -530,7 +552,7 @@ export default function ChatBot() {
 
                 {/* Chat messages */}
                 {supportPhase === 'chatting' && supportMessages.length === 0 && (
-                  <Bubble $role="system">ส่งข้อความถึง Admin แล้ว กำลังรอการตอบกลับ... 📬</Bubble>
+                  <Bubble $role="system">{t('chat.system_waiting')}</Bubble>
                 )}
                 {supportMessages.map((msg) => (
                   <div key={msg.id} style={{ display: 'flex', flexDirection: 'column', alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
@@ -543,12 +565,12 @@ export default function ChatBot() {
                         )}
                         {msg.attachment_url && msg.attachment_type === 'file' && (
                           <AttachmentFile href={msg.attachment_url} target="_blank" rel="noopener noreferrer">
-                            <File size={14} /> ดาวน์โหลดไฟล์
+                            <File size={14} /> {t('chat.download_file')}
                           </AttachmentFile>
                         )}
                       </Bubble>
                       {msg.role === 'user' && (
-                        <MsgDeleteBtn className="msg-delete" onClick={() => deleteSupportMessage(msg.id)} title="ลบข้อความ">
+                        <MsgDeleteBtn className="msg-delete" onClick={() => deleteSupportMessage(msg.id)} title={t('chat.delete_confirm')}>
                           <Trash2 size={13} />
                         </MsgDeleteBtn>
                       )}
@@ -561,18 +583,18 @@ export default function ChatBot() {
                 {/* Reset button */}
                 {supportPhase === 'chatting' && (
                   <button onClick={resetSupport} style={{ alignSelf: 'center', marginTop: 4, padding: '5px 12px', background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, color: 'rgba(148,163,184,0.4)', fontSize: 11, cursor: 'pointer' }}>
-                    เริ่มการสนทนาใหม่
+                    {t('chat.reset_button')}
                   </button>
                 )}
               </Messages>
 
               <InputArea>
                 <input type="file" ref={fileInputRef} style={{ display: 'none' }} onChange={handleFileUpload} />
-                <AttachBtn onClick={() => fileInputRef.current?.click()} disabled={supportSending} title="แนบไฟล์ (ไม่เกิน 2MB)">
+                <AttachBtn onClick={() => fileInputRef.current?.click()} disabled={supportSending} title={t('chat.send_first_before_attach')}>
                   <Paperclip size={18} />
                 </AttachBtn>
                 <TextArea ref={supportTextRef}
-                  placeholder={supportPhase === 'naming' ? 'พิมพ์ข้อความแรกของคุณ...' : 'พิมพ์ข้อความถึง Admin...'}
+                  placeholder={supportPhase === 'naming' ? t('chat.input_placeholder_support_naming') : t('chat.input_placeholder_support')}
                   value={supportInput}
                   onChange={e => { setSupportInput(e.target.value); autoResize(e.target) }}
                   onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendSupportMessage() } }}
@@ -587,7 +609,7 @@ export default function ChatBot() {
       )}
 
       {/* Floating Button */}
-      <FloatBtn $open={open} onClick={() => setOpen(v => !v)} title={open ? 'Close' : 'Chat'}>
+      <FloatBtn $open={open} onClick={() => setOpen(v => !v)} title={open ? t('chat.chat_button_close') : t('chat.chat_button_open')}>
         {open ? <ChevronDown size={24} /> : <MessageCircle size={24} />}
         {!open && hasUnread && <UnreadDot>!</UnreadDot>}
       </FloatBtn>

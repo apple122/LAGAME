@@ -12,8 +12,8 @@ export default function Footer() {
       <div className="page-container">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <img src="/LOGO.png" alt="LAPACK Logo" style={{ height: 24, width: 'auto', borderRadius: 3 }} />
-            <span style={{ fontFamily: 'Outfit', fontWeight: 800, fontSize: 18, background: 'linear-gradient(135deg,#7c3aed,#06b6d4)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>LAPACK</span>
+            <img src="/LOGO.png" alt="LAPACK Logo" style={{ height: 40, width: 'auto', borderRadius: 3 }} />
+            <span style={{ fontFamily: 'Noto Sans Lao', fontWeight: 800, fontSize: 18, background: 'linear-gradient(135deg,#7c3aed,#06b6d4)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>LAPACK</span>
           </div>
           <div style={{ display: 'flex', gap: 24 }}>
             <Link to="/" style={{ fontSize: 13, color: 'rgba(148,163,184,0.7)', transition: 'color 0.2s' }}>Home</Link>
@@ -22,7 +22,7 @@ export default function Footer() {
           </div>
         </div>
         <div style={{ marginTop: 24, textAlign: 'center', fontSize: 13, color: 'rgba(148,163,184,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-          Made with <Heart size={12} style={{ color: '#ef4444' }} /> by LAPACK Team &nbsp;·&nbsp; © {new Date().getFullYear()}
+          Apple.2u8 <Heart size={12} style={{ color: '#ef4444' }} /> by LAPACK Team &nbsp;·&nbsp; © {new Date().getFullYear()}
         </div>
       </div>
     </footer>

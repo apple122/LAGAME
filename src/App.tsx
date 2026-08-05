@@ -21,11 +21,15 @@ import CommentsPage from './pages/Comments/CommentsPage'
 import { AdminAuthProvider } from './context/AdminAuthContext'
 import { AdSettingsProvider } from './context/AdSettingsContext'
 import ProtectedAdminRoute from './components/ProtectedAdminRoute'
+import { LanguageProvider } from './lib/i18n/LanguageContext'
+import { CategoryTranslatorProvider } from './lib/i18n/CategoryTranslator'
 
 function App() {
   return (
-    <AdminAuthProvider>
-      <AdSettingsProvider>
+    <LanguageProvider>
+      <AdminAuthProvider>
+        <AdSettingsProvider>
+        <CategoryTranslatorProvider>
         <BrowserRouter>
           <Routes>
             {/* Public routes */}
@@ -68,8 +72,10 @@ function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </BrowserRouter>
-      </AdSettingsProvider>
-    </AdminAuthProvider>
+        </CategoryTranslatorProvider>
+        </AdSettingsProvider>
+      </AdminAuthProvider>
+    </LanguageProvider>
   )
 }
 

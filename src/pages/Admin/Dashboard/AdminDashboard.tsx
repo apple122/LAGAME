@@ -27,26 +27,47 @@ const Grid = styled.div`
 `
 
 const StatCard = styled.div<{ $color: string }>`
-  background: rgba(18,18,31,0.8); border: 1px solid rgba(124,58,237,0.15);
-  border-radius: 16px; padding: 22px 20px;
-  border-top: 3px solid ${p => p.$color};
-  transition: transform 0.2s, box-shadow 0.2s;
-  &:hover { transform: translateY(-3px); box-shadow: 0 8px 32px rgba(0,0,0,0.3); }
+  position: relative;
+  background: rgba(20,20,35,0.6); backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: 24px; padding: 24px 28px;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  &::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px;
+    background: ${p => p.$color};
+    box-shadow: 0 0 20px ${p => p.$color};
+  }
+  &:hover { 
+    transform: translateY(-6px); 
+    box-shadow: 0 24px 48px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1);
+    background: rgba(30,30,50,0.8);
+  }
 `
-const StatNum = styled.div<{ $color: string }>`
-  font-family: 'Outfit', sans-serif; font-size: 32px; font-weight: 900;
-  color: ${p => p.$color}; line-height: 1;
+const StatIconBox = styled.div<{ $color: string }>`
+  width: 48px; height: 48px; border-radius: 14px;
+  background: ${p => p.$color}22;
+  color: ${p => p.$color};
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 16px;
 `
-const StatLabel = styled.div`font-size: 13px; color: rgba(148,163,184,0.6); margin-top: 6px; font-weight: 500;`
+const StatNum = styled.div`
+  font-family: 'Noto Sans Lao', sans-serif; font-size: 36px; font-weight: 900;
+  color: #fff; line-height: 1; letter-spacing: -0.5px;
+`
+const StatLabel = styled.div`font-size: 14px; color: rgba(148,163,184,0.7); margin-top: 8px; font-weight: 500; letter-spacing: 0.3px;`
 
 const Section = styled.div`
-  background: rgba(18,18,31,0.8); border: 1px solid rgba(124,58,237,0.15);
-  border-radius: 16px; padding: 24px; margin-bottom: 24px;
+  background: rgba(20,20,35,0.6); backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: 24px; padding: 28px; margin-bottom: 24px;
   animation: ${fadeUp} 0.45s ease both;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
 `
 const SectionHeader = styled.div`display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;`
 const SectionTitle = styled.h2`
-  font-family: 'Outfit', sans-serif; font-size: 16px; font-weight: 700; color: #fff;
+  font-family: 'Noto Sans Lao', sans-serif; font-size: 16px; font-weight: 700; color: #fff;
   display: flex; align-items: center; gap: 8px;
 `
 const AddBtn = styled(Link)`
@@ -204,30 +225,30 @@ export default function AdminDashboard() {
 
   return (
     <div>
-      <h1 style={{ fontFamily: 'Outfit', fontSize: 26, fontWeight: 800, color: '#fff', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 10 }}>
+      <h1 style={{ fontFamily: 'Noto Sans Lao', fontSize: 26, fontWeight: 800, color: '#fff', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 10 }}>
         <TrendingUp size={24} style={{ color: '#7c3aed' }} /> Dashboard
       </h1>
 
       {/* ── Summary Stats ── */}
       <Grid>
         <StatCard $color="#7c3aed">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}><Gamepad2 size={18} style={{ color: '#7c3aed' }} /></div>
-          <StatNum $color="#7c3aed">{stats.games}</StatNum>
+          <StatIconBox $color="#7c3aed"><Gamepad2 size={22} /></StatIconBox>
+          <StatNum>{stats.games}</StatNum>
           <StatLabel>Total Games</StatLabel>
         </StatCard>
         <StatCard $color="#06b6d4">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}><Tags size={18} style={{ color: '#06b6d4' }} /></div>
-          <StatNum $color="#06b6d4">{stats.categories}</StatNum>
+          <StatIconBox $color="#06b6d4"><Tags size={22} /></StatIconBox>
+          <StatNum>{stats.categories}</StatNum>
           <StatLabel>Categories</StatLabel>
         </StatCard>
         <StatCard $color="#22c55e">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}><Eye size={18} style={{ color: '#22c55e' }} /></div>
-          <StatNum $color="#22c55e">{stats.totalViews.toLocaleString()}</StatNum>
+          <StatIconBox $color="#22c55e"><Eye size={22} /></StatIconBox>
+          <StatNum>{stats.totalViews.toLocaleString()}</StatNum>
           <StatLabel>Game Page Views</StatLabel>
         </StatCard>
         <StatCard $color="#f59e0b">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}><Globe size={18} style={{ color: '#f59e0b' }} /></div>
-          <StatNum $color="#f59e0b">{totalVisits.toLocaleString()}</StatNum>
+          <StatIconBox $color="#f59e0b"><Globe size={22} /></StatIconBox>
+          <StatNum>{totalVisits.toLocaleString()}</StatNum>
           <StatLabel>Site Visits</StatLabel>
         </StatCard>
       </Grid>
