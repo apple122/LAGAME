@@ -35,6 +35,61 @@ export function detectPlatform(): Platform {
   return 'other'
 }
 
+// ── Device Model Detection (best-effort parsing from UA) ────────────
+export function detectDeviceModel(): string {
+  const ua = navigator.userAgent || navigator.vendor || (window as any).opera || ''
+  const navAny = navigator as any
+
+  // 1) Try client-hints (some Android/Chromium browsers expose `userAgentData.model`)
+  try {
+    const uaData = navAny.userAgentData
+    if (uaData) {
+      if (uaData.model && typeof uaData.model === 'string' && uaData.model.trim()) return uaData.model.trim()
+      // Some browsers expose a brands/mobi info; fall back to platform string
+      if (uaData.platform && typeof uaData.platform === 'string' && uaData.platform.trim()) {
+        // example: "Android" or "iOS"
+        // don't return platform only unless we have no other info
+      }
+    }
+  } catch (err) {
+    // ignore
+  }
+
+  // 2) iOS devices: best-effort label (model is rarely exposed in UA)
+  if (/iPad/.test(ua) || (navigator.platform === 'MacIntel' && (navAny.maxTouchPoints || 0) > 1)) return 'iPad'
+  if (/iPhone/.test(ua)) {
+    // try to include iOS version if available
+    const v = ua.match(/OS\s(\d+[_\d]*)/) || ua.match(/OS\s(\d+_\d+)/)
+    return v && v[1] ? `iPhone iOS ${v[1].replace(/_/g, '.').trim()}` : 'iPhone'
+  }
+
+  // 3) Android — common UAs include model between the OS/version and 'Build/' token
+  const androidMatch = ua.match(/Android[^;]*;\s*([^;\)]+)\s*(?:Build|AppleWebKit|\))/i)
+  if (androidMatch && androidMatch[1]) {
+    // Cleanup common noise
+    const raw = androidMatch[1].replace(/;|Build|AppleWebKit/gi, '').trim()
+    // Some UA pieces include manufacturer + model like 'SM-G991B' or 'Pixel 4a'
+    return raw
+  }
+
+  // 4) Samsung device tokens (SM-XXXX)
+  const sm = ua.match(/\b(SM-[A-Z0-9-]+)\b/i)
+  if (sm && sm[1]) return sm[1]
+
+  // 5) Pixel / Nexus explicit mentions
+  const px = ua.match(/\b(Pixel [^;\)]+)\b/i)
+  if (px && px[1]) return px[1].trim()
+
+  // 6) Desktop fallbacks
+  if (/Macintosh|Mac OS X/.test(ua)) return 'Mac'
+  if (/Windows NT|Win32|Win64/.test(ua)) return 'Windows PC'
+  if (/Linux/.test(ua)) return 'Linux'
+
+  // 7) Last resort: short UA snippet
+  const short = ua.split(')').shift() || ua
+  return short.substring(0, 64)
+}
+
 // ── Site Visit Tracking ───────────────────────────────────────────
 const SITE_VISIT_KEY = 'lap_site_visited'
 
@@ -49,8 +104,9 @@ export async function trackSiteVisit(): Promise<void> {
     sessionStorage.setItem(SITE_VISIT_KEY, '1')
 
     const platform = detectPlatform()
+    const device_model = detectDeviceModel()
     // Cast as any: Supabase client doesn't have types for analytics tables
-    await (supabase as any).from('site_views').insert({ platform })
+    await (supabase as any).from('site_views').insert({ platform, device_model })
   } catch (err) {
     // Analytics should never break the app
     console.warn('Analytics: trackSiteVisit failed', err)
@@ -66,12 +122,26 @@ export async function trackSiteVisit(): Promise<void> {
 export async function trackGameView(gameId: string, currentViewCount: number): Promise<void> {
   try {
     const platform = detectPlatform()
+    const device_model = detectDeviceModel()
 
     // Upsert into game_view_platforms (increment counter per platform)
+    // keep legacy platform-level RPC
     await (supabase as any).rpc('increment_game_platform_view', {
       p_game_id: gameId,
       p_platform: platform,
     })
+
+    // increment platform+device_model breakdown (new)
+    try {
+      await (supabase as any).rpc('increment_game_platform_model_view', {
+        p_game_id: gameId,
+        p_platform: platform,
+        p_device_model: device_model,
+      })
+    } catch (err) {
+      // If RPC not present, ignore to preserve backward compatibility
+      // console.warn('Analytics: increment_game_platform_model_view missing', err)
+    }
 
     // Also update legacy view_count on games table
     await (supabase as any)
@@ -132,6 +202,48 @@ export async function getAllGamesPlatformStats(): Promise<{ game_id: string; pla
   const { data, error } = await (supabase as any)
     .from('game_view_platforms')
     .select('game_id, platform, view_count')
+
+  if (error || !data) return []
+  return data as any[]
+}
+
+/** Get site-wide visits grouped by platform + device_model */
+export async function getSitePlatformModelStats(): Promise<{ platform: string; device_model: string; count: number }[]> {
+  const { data, error } = await (supabase as any)
+    .from('site_views')
+    .select('platform, device_model')
+
+  if (error || !data) return []
+
+  const map: Record<string, number> = {}
+  for (const row of (data as any[])) {
+    const key = `${row.platform}||${row.device_model || ''}`
+    map[key] = (map[key] || 0) + 1
+  }
+
+  return Object.entries(map).map(([k, count]) => {
+    const [platform, device_model] = k.split('||')
+    return { platform, device_model, count }
+  }).sort((a, b) => b.count - a.count)
+}
+
+/** Get platform+device_model breakdown for a specific game */
+export async function getGamePlatformModelStats(gameId: string): Promise<{ platform: string; device_model: string; count: number }[]> {
+  const { data, error } = await (supabase as any)
+    .from('game_view_platform_models')
+    .select('platform, device_model, view_count')
+    .eq('game_id', gameId)
+
+  if (error || !data) return []
+  return (data as any[]).map(r => ({ platform: r.platform, device_model: r.device_model, count: r.view_count }))
+    .sort((a, b) => b.count - a.count)
+}
+
+/** Get all games with their platform+device_model breakdown (for top games chart) */
+export async function getAllGamesPlatformModelStats(): Promise<{ game_id: string; platform: string; device_model: string; view_count: number }[]> {
+  const { data, error } = await (supabase as any)
+    .from('game_view_platform_models')
+    .select('game_id, platform, device_model, view_count')
 
   if (error || !data) return []
   return data as any[]

@@ -16,7 +16,13 @@ export default function Footer() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <img src="/LOGO.png" alt="LAPACK Logo" style={{ height: 40, width: 'auto', borderRadius: 3 }} />
-            <span style={{ fontFamily: 'Noto Sans Lao', fontWeight: 800, fontSize: 18, background: 'linear-gradient(135deg,#7c3aed,#06b6d4)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>LA-GAME</span>
+            <div style={{ display: 'grid', alignItems: 'center', gap: 2 }}>
+              <span style={{ fontFamily: 'Noto Sans Lao', fontWeight: 800, fontSize: 18, background: 'linear-gradient(135deg,#7c3aed,#06b6d4)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>LA-GAME</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontFamily: 'Noto Sans Lao', fontSize: 8, color: '#fff' }}>
+                LAOS <p style={{ fontSize: 6 }}>LA</p>
+                <img src="/LAOS.png" alt="Laos Flag" style={{ width: 12, height: 8, marginLeft: 4, marginRight: 4 }} />
+              </span  >
+            </div>
           </div>
           <div style={{ display: 'flex', gap: 24 }}>
             <Link to="/" style={{ fontSize: 13, color: 'rgba(148,163,184,0.7)', transition: 'color 0.2s' }}>{t('nav.home')}</Link>

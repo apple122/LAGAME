@@ -70,8 +70,14 @@ export default function InterstitialPage() {
   const { adSettings, loading } = useAdSettings()
   const targetUrl = params.get('url') ? decodeURIComponent(params.get('url')!) : null
   const cloudName = params.get('cloud') ? decodeURIComponent(params.get('cloud')!) : 'Cloud'
+  const adAttempted = params.get('ad') === '1'
   const [countdown, setCountdown] = useState(10)
   const [ready, setReady] = useState(false)
+  const [adOpened, setAdOpened] = useState<boolean>(adAttempted)
+  const adContent = adSettings?.ad_url || ''
+
+  const isFullScript = (s: string) => /<script[\s\S]*?>[\s\S]*?<\/script>/i.test(s) || /function\s+adsterra|adsterra\.com|adsterra/i.test(s)
+  const isNumericId = (s: string) => /^[0-9]{4,}$/.test(s)
 
   const totalSeconds = adSettings?.countdown_seconds || 10
 
@@ -94,6 +100,71 @@ export default function InterstitialPage() {
     }, 1000)
     return () => clearInterval(interval)
   }, [targetUrl, loading, totalSeconds])
+
+  // Inject ad script or iframe depending on admin-provided value
+  useEffect(() => {
+    if (!adContent) return
+
+    // If admin provided a full <script> snippet, inject it into the page DOM
+    if (isFullScript(adContent)) {
+      try {
+        const wrapper = document.createElement('div')
+        wrapper.setAttribute('data-adsterra-inject', '1')
+        wrapper.innerHTML = adContent
+        document.body.appendChild(wrapper)
+        // mark adOpened true so fallback button hides
+        setAdOpened(true)
+      } catch (err) {
+        console.warn('Failed to inject ad script', err)
+      }
+      return () => {
+        const el = document.querySelector('[data-adsterra-inject]')
+        if (el && el.parentNode) el.parentNode.removeChild(el)
+      }
+    }
+
+    // If admin provided a numeric ID, we attempt to load a standard loader script
+    if (isNumericId(adContent)) {
+      try {
+        // Insert a small loader script that sets a zone variable then loads external adsterra loader
+        const script = document.createElement('script')
+        script.setAttribute('data-adsterra-loader', '1')
+        script.type = 'text/javascript'
+        // NOTE: Replace the src below with the official Adsterra loader URL if different
+        script.text = `
+          window._adsterra_zone = '${adContent}';
+          (function(){
+            var s = document.createElement('script'); s.async = true;
+            s.src = 'https://a.adsterra.com/loader.js';
+            var el = document.getElementsByTagName('script')[0]; el.parentNode.insertBefore(s, el);
+          })();
+        `
+        document.body.appendChild(script)
+        setAdOpened(true)
+      } catch (err) {
+        console.warn('Failed to insert adsterra loader with id', err)
+      }
+      return () => {
+        const s = document.querySelector('[data-adsterra-loader]')
+        if (s && s.parentNode) s.parentNode.removeChild(s)
+      }
+    }
+
+    // If adContent is a URL, we keep iframe rendering (handled in JSX) and do nothing here
+  }, [adContent])
+
+  const openAdFallback = () => {
+    if (!adSettings?.ad_url) return
+    try {
+      const w = window.open('about:blank', `ad_fallback_${Date.now()}`)
+      if (w) {
+        w.location.href = adSettings.ad_url
+        setAdOpened(true)
+      }
+    } catch (err) {
+      console.warn('Ad open fallback failed', err)
+    }
+  }
 
   const proceed = () => {
     if (!ready || !targetUrl) return
@@ -148,6 +219,13 @@ export default function InterstitialPage() {
             <p style={{ fontSize: 13, color: 'rgba(148,163,184,0.5)' }}>
               <Clock size={13} style={{ verticalAlign: 'middle' }} /> Download link available in {countdown}s
             </p>
+            {!adOpened && adSettings?.ad_url && (
+              <div style={{ marginTop: 12 }}>
+                <ProceedBtn onClick={openAdFallback} style={{ width: 'auto', padding: '8px 12px' }}>
+                  Open Ad (if blocked)
+                </ProceedBtn>
+              </div>
+            )}
           </>
         ) : (
           <ProceedBtn onClick={proceed}>

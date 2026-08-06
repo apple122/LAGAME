@@ -21,6 +21,12 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://example.com/game/crimson-desert-deluxe-edition</loc>
+    <lastmod>2026-08-06T05:21:47.499Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
     <loc>https://example.com/game/beast-of-reincarnation</loc>
     <lastmod>2026-08-04T08:52:03.973Z</lastmod>
     <changefreq>weekly</changefreq>

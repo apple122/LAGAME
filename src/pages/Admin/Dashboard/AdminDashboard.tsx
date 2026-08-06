@@ -3,7 +3,7 @@ import styled, { keyframes } from 'styled-components'
 import { Link } from 'react-router-dom'
 import { Gamepad2, Tags, Eye, Plus, TrendingUp, Globe, BarChart2, Activity } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
-import { getSitePlatformStats, getAllGamesPlatformStats, getTotalSiteVisits } from '../../../lib/analytics'
+import { getSitePlatformStats, getAllGamesPlatformStats, getTotalSiteVisits, getSitePlatformModelStats, getAllGamesPlatformModelStats } from '../../../lib/analytics'
 import type { PlatformStat } from '../../../lib/analytics'
 
 // ── Animations ─────────────────────────────────────────────────────
@@ -151,21 +151,44 @@ function PlatformBreakdown({ stats }: { stats: PlatformStat[] }) {
   )
 }
 
-// ── Bar Chart ──────────────────────────────────────────────────────
-function PlatformBarChart({ data, emptyMsg = 'No data yet' }: { data: PlatformStat[]; emptyMsg?: string }) {
+// ── Bar Chart (platform + models) ──────────────────────────────────
+
+// Extended bar chart that supports expandable device model lists per platform
+function PlatformBarChartWithModels({ data, models }: { data: PlatformStat[]; models: { platform: string; device_model: string; count: number }[] }) {
   const max = Math.max(...data.map(d => d.count), 1)
-  if (data.length === 0) return <p style={{ fontSize: 13, color: 'rgba(148,163,184,0.3)' }}>{emptyMsg}</p>
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({})
+  const modelsMap: Record<string, { device_model: string; count: number }[]> = {}
+  for (const m of models) {
+    if (!modelsMap[m.platform]) modelsMap[m.platform] = []
+    modelsMap[m.platform].push({ device_model: m.device_model || 'Unknown', count: m.count })
+  }
+
   return (
     <BarWrap>
       {data.map(d => {
         const cfg = getPConfig(d.platform)
         const pct = `${Math.round((d.count / max) * 100)}%`
+        const platformModels = (modelsMap[d.platform] || []).sort((a, b) => b.count - a.count)
         return (
-          <BarRow key={d.platform}>
-            <BarLabel><span>{cfg.icon}</span> {cfg.label}</BarLabel>
-            <BarTrack><BarFill $pct={pct} $grad={cfg.gradient} /></BarTrack>
-            <BarCount>{d.count.toLocaleString()}</BarCount>
-          </BarRow>
+          <div key={d.platform} style={{ marginBottom: 8 }}>
+            <BarRow>
+              <BarLabel><span>{cfg.icon}</span> {cfg.label}</BarLabel>
+              <BarTrack><BarFill $pct={pct} $grad={cfg.gradient} /></BarTrack>
+              <BarCount style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {d.count.toLocaleString()}
+                {platformModels.length > 0 && (
+                  <button onClick={() => setExpanded(e => ({ ...e, [d.platform]: !e[d.platform] }))} style={{ background: 'transparent', border: 'none', color: 'rgba(148,163,184,0.6)', cursor: 'pointer' }}>{expanded[d.platform] ? '▾' : '▸'}</button>
+                )}
+              </BarCount>
+            </BarRow>
+            {expanded[d.platform] && platformModels.length > 0 && (
+              <div style={{ marginTop: 8, marginLeft: 100, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {platformModels.map(m => (
+                  <PlatformBadge key={m.device_model} $color={cfg.color}>{m.device_model} {m.count}</PlatformBadge>
+                ))}
+              </div>
+            )}
+          </div>
         )
       })}
     </BarWrap>
@@ -177,8 +200,10 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState({ games: 0, categories: 0, totalViews: 0 })
   const [recentGames, setRecentGames] = useState<any[]>([])
   const [sitePlatformStats, setSitePlatformStats] = useState<PlatformStat[]>([])
+  const [sitePlatformModelStats, setSitePlatformModelStats] = useState<{ platform: string; device_model: string; count: number }[]>([])
   const [totalVisits, setTotalVisits] = useState(0)
   const [topGames, setTopGames] = useState<{ id: string; title: string; cover_image: string | null; view_count: number; platforms: PlatformStat[] }[]>([])
+  const [allGamePlatformModelStats, setAllGamePlatformModelStats] = useState<{ game_id: string; platform: string; device_model: string; view_count: number }[]>([])
 
   useEffect(() => {
     const load = async () => {
@@ -193,11 +218,13 @@ export default function AdminDashboard() {
       setRecentGames(games || [])
 
       // Analytics: site visits + platform
-      const [siteStats, visits] = await Promise.all([
+      const [siteStats, siteModelStats, visits] = await Promise.all([
         getSitePlatformStats(),
+      getSitePlatformModelStats(),
         getTotalSiteVisits(),
       ])
       setSitePlatformStats(siteStats)
+      setSitePlatformModelStats(siteModelStats)
       setTotalVisits(visits)
 
       // Top games with platform breakdown
@@ -209,15 +236,17 @@ export default function AdminDashboard() {
 
       if (topRaw && topRaw.length > 0) {
         const allPlatformData = await getAllGamesPlatformStats()
+          const allPlatformModelData = await getAllGamesPlatformModelStats()
         const platformMap: Record<string, PlatformStat[]> = {}
         for (const row of allPlatformData) {
           if (!platformMap[row.game_id]) platformMap[row.game_id] = []
           platformMap[row.game_id].push({ platform: row.platform, count: row.view_count })
         }
-        setTopGames(topRaw.map((g: any) => ({
-          ...g,
-          platforms: (platformMap[g.id] || []).sort((a, b) => b.count - a.count),
-        })))
+        setAllGamePlatformModelStats(allPlatformModelData)
+            setTopGames(topRaw.map((g: any) => ({
+              ...g,
+              platforms: (platformMap[g.id] || []).sort((a, b) => b.count - a.count),
+            })))
       }
     }
     load()
@@ -260,9 +289,9 @@ export default function AdminDashboard() {
           <SectionHeader>
             <SectionTitle><Globe size={16} style={{ color: '#f59e0b' }} /> Site Traffic by Platform</SectionTitle>
           </SectionHeader>
-          <PlatformBarChart
+          <PlatformBarChartWithModels
             data={sitePlatformStats}
-            emptyMsg="No visit data yet — users will be tracked on next visit."
+            models={sitePlatformModelStats}
           />
         </Section>
 
@@ -276,7 +305,20 @@ export default function AdminDashboard() {
             const agg: Record<string, number> = {}
             topGames.forEach(g => g.platforms.forEach(p => { agg[p.platform] = (agg[p.platform] || 0) + p.count }))
             const data: PlatformStat[] = Object.entries(agg).map(([platform, count]) => ({ platform, count })).sort((a, b) => b.count - a.count)
-            return <PlatformBarChart data={data} emptyMsg="No game view data yet." />
+
+            // Build aggregated models across all games per platform from allGamePlatformModelStats
+            const modelsAgg: { platform: string; device_model: string; count: number }[] = []
+            const tmp: Record<string, number> = {}
+            for (const r of allGamePlatformModelStats) {
+              const key = `${r.platform}||${r.device_model}`
+              tmp[key] = (tmp[key] || 0) + (r.view_count || 0)
+            }
+            for (const [k, count] of Object.entries(tmp)) {
+              const [platform, device_model] = k.split('||')
+              modelsAgg.push({ platform, device_model, count })
+            }
+
+            return <PlatformBarChartWithModels data={data} models={modelsAgg} />
           })()}
         </Section>
       </AnalyticsGrid>
