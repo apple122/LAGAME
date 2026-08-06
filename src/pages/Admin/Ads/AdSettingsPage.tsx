@@ -6,7 +6,7 @@ import { useAdSettings } from '../../../context/AdSettingsContext'
 import {
   AdminPage, PageHeader, PageTitle, PageSubTitle,
   Card, CardHeader, CardTitle,
-  TwoCol, Field, Label, Input, Hint,
+  TwoCol, Field, Label, TextArea, Hint,
   PrimaryBtn,
   Alert, Divider,
   ToggleRow, ToggleLabel, ToggleHint, TogglePill
@@ -41,6 +41,7 @@ const RangeWrap = styled.div`
 export default function AdSettingsPage() {
   const { adSettings, refresh } = useAdSettings()
   const [adUrl, setAdUrl] = useState('')
+  const [scripts, setScripts] = useState<string[]>([])
   const [countdown, setCountdown] = useState(10)
   const [isActive, setIsActive] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -49,6 +50,7 @@ export default function AdSettingsPage() {
   useEffect(() => {
     if (adSettings) {
       setAdUrl(adSettings.ad_url || '')
+      setScripts((adSettings as any).ad_scripts && Array.isArray((adSettings as any).ad_scripts) ? (adSettings as any).ad_scripts : (adSettings.ad_url ? [adSettings.ad_url] : []))
       setCountdown(adSettings.countdown_seconds || 10)
       setIsActive(adSettings.is_active)
     }
@@ -57,7 +59,7 @@ export default function AdSettingsPage() {
   const handleSave = async () => {
     setSaving(true); setMsg(null)
     const id = adSettings?.id
-    const payload = { ad_url: adUrl, countdown_seconds: countdown, is_active: isActive, updated_at: new Date().toISOString() }
+    const payload = { ad_url: adUrl, ad_scripts: scripts, countdown_seconds: countdown, is_active: isActive, updated_at: new Date().toISOString() }
     let error
     if (id) {
       const res = await (supabase.from('ad_settings') as any).update(payload).eq('id', id)
@@ -117,13 +119,43 @@ export default function AdSettingsPage() {
           <Divider />
 
           <Field>
-            <Label>Ad URL (iframe source)</Label>
-            <Input
-              placeholder="https://your-ad-network.com/ad-unit-id"
-              value={adUrl}
-              onChange={e => setAdUrl(e.target.value)}
-            />
-            <Hint>Enter the iframe source URL from PopAds, PropellerAds, AdSense, etc.</Hint>
+            <Label>Ad Script / Ad Code</Label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {scripts.map((s, idx) => (
+                <div key={idx} style={{ position: 'relative', display: 'flex', gap: 8 }}>
+                  <TextArea
+                    placeholder="Paste full ad script tag or zone id"
+                    value={s}
+                    onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setScripts(v => v.map((x, i) => i === idx ? e.target.value : x))}
+                    style={{ flex: 1, height: 56, minHeight: 48, maxHeight: 96, resize: 'vertical', paddingRight: 44 }}
+                  />
+                  <button
+                    aria-label={`Remove script ${idx + 1}`}
+                    onClick={() => setScripts(v => v.filter((_, i) => i !== idx))}
+                    style={{
+                      position: 'absolute', right: 8, top: 8,
+                      background: 'transparent', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 6, padding: '6px 8px', color: '#fff', cursor: 'pointer', height: 32
+                    }}
+                  >Remove</button>
+                </div>
+              ))}
+
+              <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                <TextArea
+                  placeholder="Paste full ad script tag or zone id"
+                  value={adUrl}
+                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setAdUrl(e.target.value)}
+                  style={{ flex: 1, height: 56, minHeight: 48, maxHeight: 96, resize: 'vertical' }}
+                />
+                <button
+                  onClick={() => { if (adUrl && adUrl.trim()) { setScripts(v => [...v, adUrl.trim()]); setAdUrl('') } }}
+                  style={{ background: 'linear-gradient(135deg,#7c3aed,#06b6d4)', border: 'none', borderRadius: 8, padding: '10px 14px', color: '#fff', cursor: 'pointer', height: 40 }}
+                >+ Add</button>
+              </div>
+            </div>
+            <Hint>
+              You can paste the full ad script, a numeric zone ID, or an ad URL. Add multiple scripts; they will be injected in order.
+            </Hint>
           </Field>
 
           <Field>

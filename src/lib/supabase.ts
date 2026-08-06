@@ -59,6 +59,7 @@ export type DownloadLink = {
 export type AdSettings = {
   id: string
   ad_url: string
+  ad_scripts?: string[]
   countdown_seconds: number
   is_active: boolean
   updated_at: string

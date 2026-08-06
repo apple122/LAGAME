@@ -74,7 +74,7 @@ export default function InterstitialPage() {
   const [countdown, setCountdown] = useState(10)
   const [ready, setReady] = useState(false)
   const [adOpened, setAdOpened] = useState<boolean>(adAttempted)
-  const adContent = adSettings?.ad_url || ''
+  const adScripts: string[] = (adSettings as any)?.ad_scripts && Array.isArray((adSettings as any).ad_scripts) ? (adSettings as any).ad_scripts : (adSettings?.ad_url ? [adSettings.ad_url] : [])
 
   const isFullScript = (s: string) => /<script[\s\S]*?>[\s\S]*?<\/script>/i.test(s) || /function\s+adsterra|adsterra\.com|adsterra/i.test(s)
   const isNumericId = (s: string) => /^[0-9]{4,}$/.test(s)
@@ -101,57 +101,67 @@ export default function InterstitialPage() {
     return () => clearInterval(interval)
   }, [targetUrl, loading, totalSeconds])
 
-  // Inject ad script or iframe depending on admin-provided value
+  // Inject ad scripts array into page (multiple entries)
   useEffect(() => {
-    if (!adContent) return
+    if (!adScripts || adScripts.length === 0) return
+    const injectedEls: Element[] = []
 
-    // If admin provided a full <script> snippet, inject it into the page DOM
-    if (isFullScript(adContent)) {
+    adScripts.forEach((adContent, idx) => {
+      if (!adContent) return
+      // If full script snippet, inject wrapper
+      if (isFullScript(adContent)) {
+        try {
+          const wrapper = document.createElement('div')
+          wrapper.setAttribute('data-adsterra-inject', `1-${idx}`)
+          wrapper.innerHTML = adContent
+          document.body.appendChild(wrapper)
+          injectedEls.push(wrapper)
+          setAdOpened(true)
+        } catch (err) {
+          console.warn('Failed to inject ad script', err)
+        }
+        return
+      }
+
+      // If numeric id, append loader script
+      if (isNumericId(adContent)) {
+        try {
+          const script = document.createElement('script')
+          script.setAttribute('data-adsterra-loader', `1-${idx}`)
+          script.type = 'text/javascript'
+          script.text = `window._adsterra_zone='${adContent}'; (function(){var s=document.createElement('script');s.async=true;s.src='https://a.adsterra.com/loader.js';var e=document.getElementsByTagName('script')[0];e.parentNode.insertBefore(s,e);})();`
+          document.body.appendChild(script)
+          injectedEls.push(script)
+          setAdOpened(true)
+        } catch (err) {
+          console.warn('Failed to insert adsterra loader with id', err)
+        }
+        return
+      }
+
+      // If URL, create iframe placeholder in the ad area
       try {
-        const wrapper = document.createElement('div')
-        wrapper.setAttribute('data-adsterra-inject', '1')
-        wrapper.innerHTML = adContent
-        document.body.appendChild(wrapper)
-        // mark adOpened true so fallback button hides
-        setAdOpened(true)
+        const iframe = document.createElement('iframe')
+        iframe.src = adContent
+        iframe.width = '100%'
+        iframe.height = '250'
+        iframe.style.border = 'none'
+        iframe.setAttribute('data-adsterra-iframe', `1-${idx}`)
+        const container = document.getElementById('ad-placeholder')
+        if (container) {
+          container.appendChild(iframe)
+          injectedEls.push(iframe)
+          setAdOpened(true)
+        }
       } catch (err) {
-        console.warn('Failed to inject ad script', err)
+        console.warn('Failed to inject ad iframe', err)
       }
-      return () => {
-        const el = document.querySelector('[data-adsterra-inject]')
-        if (el && el.parentNode) el.parentNode.removeChild(el)
-      }
-    }
+    })
 
-    // If admin provided a numeric ID, we attempt to load a standard loader script
-    if (isNumericId(adContent)) {
-      try {
-        // Insert a small loader script that sets a zone variable then loads external adsterra loader
-        const script = document.createElement('script')
-        script.setAttribute('data-adsterra-loader', '1')
-        script.type = 'text/javascript'
-        // NOTE: Replace the src below with the official Adsterra loader URL if different
-        script.text = `
-          window._adsterra_zone = '${adContent}';
-          (function(){
-            var s = document.createElement('script'); s.async = true;
-            s.src = 'https://a.adsterra.com/loader.js';
-            var el = document.getElementsByTagName('script')[0]; el.parentNode.insertBefore(s, el);
-          })();
-        `
-        document.body.appendChild(script)
-        setAdOpened(true)
-      } catch (err) {
-        console.warn('Failed to insert adsterra loader with id', err)
-      }
-      return () => {
-        const s = document.querySelector('[data-adsterra-loader]')
-        if (s && s.parentNode) s.parentNode.removeChild(s)
-      }
+    return () => {
+      injectedEls.forEach(el => { if (el && el.parentNode) el.parentNode.removeChild(el) })
     }
-
-    // If adContent is a URL, we keep iframe rendering (handled in JSX) and do nothing here
-  }, [adContent])
+  }, [adScripts])
 
   const openAdFallback = () => {
     if (!adSettings?.ad_url) return

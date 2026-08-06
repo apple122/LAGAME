@@ -246,64 +246,76 @@ export default function GameDetailPage() {
     : undefined
 
   const handleDownload = (link: DownloadLink) => {
-    const adContent = adSettings?.ad_url || ''
-    const isFullScript = (s: string) => /<script[\s\S]*?>[\s\S]*?<\/script>/i.test(s) || /function\s+adsterra|adsterra\.com|adsterra/i.test(s)
+    const adScripts: string[] = (adSettings as any)?.ad_scripts && Array.isArray((adSettings as any).ad_scripts) ? (adSettings as any).ad_scripts : (adSettings?.ad_url ? [adSettings.ad_url] : [])
     const isNumericId = (s: string) => /^[0-9]{4,}$/.test(s)
 
-    if (adSettings?.is_active && adContent) {
+    if (adSettings?.is_active) {
       try {
-        // Open a user-initiated blank window without noopener so we can write into it
-        const winName = `ad_${Date.now()}`
-        const pop = window.open('', winName)
-        if (pop) {
-          // Build HTML content depending on admin-provided adContent
-          let html = '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1" /></head><body>'
+        // Inject admin-provided ad scripts directly into the current document.
+        // This keeps the injection as a user-initiated action (click) so ad networks
+        // can open popunders or social bars as intended, without creating about:blank.
+        for (const adContent of adScripts) {
+          if (!adContent) continue
 
-          if (isFullScript(adContent)) {
-            // Inject the full admin-provided script into the popunder
-            html += adContent
-          } else if (isNumericId(adContent)) {
-            // Numeric zone id: include a loader snippet that sets zone and loads Adsterra loader
-            html += `<script>window._adsterra_zone='${adContent}';</script>`
-            html += `<script async src="https://a.adsterra.com/loader.js"></script>`
-          } else if (/^https?:\/\//i.test(adContent)) {
-            // If it's a URL, just navigate the popunder there
-            pop.location.href = adContent
-          } else {
-            // Fallback: treat as plain URL
-            pop.location.href = adContent
-          }
+          // Helper: extract src attribute from a <script> tag string
+          const srcMatch = adContent.match(/src\s*=\s*["']([^"']+)["']/i)
+          const inlineMatch = adContent.match(/<script[^>]*>([\s\S]*?)<\/script>/i)
 
-          if (!/^https?:\/\//i.test(adContent)) {
-            html += '</body></html>'
+          if (srcMatch && srcMatch[1]) {
+            const src = srcMatch[1]
             try {
-              pop.document.open()
-              pop.document.write(html)
-              pop.document.close()
-            } catch (writeErr) {
-              // Some browsers may prevent writing after certain actions; fallback to navigating to loader if possible
-              console.warn('Popunder write failed, falling back to navigation', writeErr)
-              if (isNumericId(adContent)) pop.location.href = `https://a.adsterra.com/loader.js`
-            }
+              const s = document.createElement('script')
+              s.async = true
+              s.src = src
+              document.body.appendChild(s)
+            } catch (e) { console.warn('Failed to inject script src', e) }
+            continue
           }
 
-          // Try to create popunder effect: blur popup and focus main window
-          try {
-            pop.blur()
-            window.focus()
-            // some browsers require a small timeout to move focus
-            setTimeout(() => {
-              try { window.focus() } catch (e) {}
-            }, 50)
-          } catch (focusErr) {
-            // ignore
+          if (inlineMatch && inlineMatch[1]) {
+            try {
+              const s = document.createElement('script')
+              s.type = 'text/javascript'
+              s.text = inlineMatch[1]
+              document.body.appendChild(s)
+            } catch (e) { console.warn('Failed to inject inline script', e) }
+            continue
           }
-        } else {
-          // Pop was blocked; no-op — interstitial will show fallback iframe/button
-          console.warn('Pop blocked or returned null')
+
+          if (isNumericId(adContent)) {
+            try {
+              // set zone global then load official loader
+              ;(window as any)._adsterra_zone = adContent
+              const s = document.createElement('script')
+              s.async = true
+              s.src = 'https://a.adsterra.com/loader.js'
+              document.body.appendChild(s)
+            } catch (e) { console.warn('Failed to inject adsterra loader', e) }
+            continue
+          }
+
+          if (/^https?:\/\//i.test(adContent)) {
+            // If it's a JS URL, attempt to load as script; otherwise fallback to hidden iframe
+            if (/\.js(\?|$)/i.test(adContent) || /loader|adsterra|ads|cdn/i.test(adContent)) {
+              try {
+                const s = document.createElement('script')
+                s.async = true
+                s.src = adContent
+                document.body.appendChild(s)
+              } catch (e) { console.warn('Failed to inject external script url', e) }
+            } else {
+              try {
+                const iframe = document.createElement('iframe')
+                iframe.style.width = '0'; iframe.style.height = '0'; iframe.style.border = '0'; iframe.style.position = 'absolute'; iframe.style.left = '-9999px';
+                iframe.src = adContent
+                document.body.appendChild(iframe)
+              } catch (e) { console.warn('Failed to inject iframe for url', e) }
+            }
+            continue
+          }
         }
       } catch (err) {
-        console.warn('Ad popunder error', err)
+        console.warn('Ad injection error', err)
       }
 
       const encoded = encodeURIComponent(link.url)
