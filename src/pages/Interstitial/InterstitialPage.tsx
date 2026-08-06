@@ -16,7 +16,7 @@ const Bg = styled.div`
   position: absolute; inset: 0; z-index: 0;
   display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px;
   padding: 18px;
-  pointer-events: none;
+  pointer-events: auto; /* allow clicks on background ads */
   background: radial-gradient(circle at top left, rgba(124,58,237,0.22), transparent 28%),
               radial-gradient(circle at bottom right, rgba(6,182,212,0.16), transparent 32%),
               rgba(2,6,23,0.88);
