@@ -36,6 +36,19 @@ const en: TranslationMap = {
   'game.about':                 'About This Game',
   'game.loading':               'Loading game...',
   'game.download':              'Download',
+  // Download modal / interstitial
+  'dl.modal.preparing': 'Preparing your download',
+  'dl.modal.heading': 'Downloading from {cloud}',
+  'dl.modal.wait_message': 'Please wait while we prepare your download link',
+  'dl.modal.safe_notice': 'The ads you see help support this project. No viruses — 100% safe.',
+  'dl.modal.available_in': 'Download link available in {s}s',
+  'dl.modal.open_ad_fallback': 'Open Ad (if blocked)',
+  'dl.modal.proceed': 'Proceed to Download',
+  'dl.modal.ad_revenue_note': 'Ad revenue helps us keep this site free ♥',
+  'dl.modal.preview_label': 'Preview (not clickable)',
+  'dl.modal.preview_unavailable': 'Preview unavailable (site prevents embedding)',
+  'dl.modal.open_in_tab': 'Open preview in new tab',
+  'dl.modal.ad_placeholder': 'Advertisement area',
 
   // Translation
   'translate.loading':   'Translating...',
@@ -225,6 +238,20 @@ const th: TranslationMap = {
   'game.loading':               'กำลังโหลดเกม...',
   'game.download':              'ดาวน์โหลด',
 
+  // Download modal / interstitial
+  'dl.modal.preparing': 'กำลังเตรียมไฟล์ดาวน์โหลด',
+  'dl.modal.heading': 'กำลังดาวน์โหลดจาก {cloud}',
+  'dl.modal.wait_message': 'กรุณารอสักครู่ ขณะที่เรากำลังเตรียมลิงก์ดาวน์โหลดของคุณ',
+  'dl.modal.safe_notice': 'โฆษณาที่ท่านเห็นเป็นส่วนหนึ่งในการสนับสนุนโปรเจกต์ — ไม่มีไวรัส ปลอดภัย 100%',
+  'dl.modal.available_in': 'ลิงก์ดาวน์โหลดพร้อมในอีก {s} วินาที',
+  'dl.modal.open_ad_fallback': 'เปิดโฆษณา (หากถูกบล็อก)',
+  'dl.modal.proceed': 'ไปยังการดาวน์โหลด',
+  'dl.modal.ad_revenue_note': 'รายได้โฆษณาช่วยให้เว็บไซต์นี้ให้บริการฟรี ♥',
+  'dl.modal.preview_label': 'ตัวอย่างหน้า (ไม่สามารถคลิกได้)',
+  'dl.modal.preview_unavailable': 'ไม่สามารถแสดงตัวอย่าง (เว็บไซต์ไม่อนุญาตให้ฝัง)',
+  'dl.modal.open_in_tab': 'เปิดตัวอย่างในแท็บใหม่',
+  'dl.modal.ad_placeholder': 'พื้นที่โฆษณา',
+
   // Translation
   'translate.loading':   'กำลังแปลภาษา...',
   'translate.original':  'ต้นฉบับ',
@@ -412,6 +439,19 @@ const lo: TranslationMap = {
   // Common
   'common.close':  'ປິດ',
   'common.search': 'ຊອກຫາເກມ...',
+  // Download modal / interstitial (Lao)
+  'dl.modal.preparing': 'ກຳລັງຈັດເຕີມການດາວໂຫຼດ',
+  'dl.modal.heading': 'ກຳລັງດາວໂຫຼດຈາກ {cloud}',
+  'dl.modal.wait_message': 'ກະລຸນາລໍຖ້າ ເຮົາກຳລັງຈັດລິ້ງດາວໂຫຼດ',
+  'dl.modal.safe_notice': 'ໂຄສໜາທີ່ເຫັນແມ່ນການສະໜັບສະໜຸນໂຄງການ LA-GAME — ບໍ່ມີໄວລັດ, ປອດໄພ 100%',
+  'dl.modal.available_in': 'ລິ້ງດາວໂຫຼດຈະພ້ອມໃນ {s} ວິນາທີ',
+  'dl.modal.open_ad_fallback': 'ເປີດໂຄສະໜາ (ຖ້າຖືກລ໋ອກ)',
+  'dl.modal.proceed': 'ໄປທີ່ການດາວໂຫຼດ',
+  'dl.modal.ad_revenue_note': 'ລາຍຮັບຈາກໂຄໂສຊ່ວຍໃຫ້ເວັບນີ້ເປັນຟຣີ ♥',
+  'dl.modal.preview_label': 'ແສງໜ້າຕ່າງ (ບໍ່ສາມາດກົດໄດ້)',
+  'dl.modal.preview_unavailable': 'ບໍ່ສາມາດເຫັນຕົວຢ່າງ (ເວັບໄຊບໍ່ອະນຸຍາດການຝັງ)',
+  'dl.modal.open_in_tab': 'ເປີດຕົວຢ່າງໃນແທັບໃໝ່',
+  'dl.modal.ad_placeholder': 'ພື້ນທີ່ໂຄໂສລາງ',
 }
 
 export const locales: Record<Locale, TranslationMap> = { en, th, lo }

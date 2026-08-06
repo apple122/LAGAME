@@ -56,10 +56,17 @@ export type DownloadLink = {
   sort_order: number
 }
 
+export type AdFormat = 'Popunder' | 'Smartlink' | 'Native Banner' | 'Social Bar' | 'Banner'
+
+export type AdScriptItem = {
+  code: string
+  format: AdFormat
+}
+
 export type AdSettings = {
   id: string
   ad_url: string
-  ad_scripts?: string[]
+  ad_scripts?: Array<string | AdScriptItem>
   countdown_seconds: number
   is_active: boolean
   updated_at: string

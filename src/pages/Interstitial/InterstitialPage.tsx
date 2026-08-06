@@ -1,42 +1,172 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
-import styled from 'styled-components'
-import { Shield, ExternalLink, Clock, CheckCircle } from 'lucide-react'
+import styled, { keyframes } from 'styled-components'
+import { Shield, ExternalLink, Clock, CheckCircle, Download, Lock } from 'lucide-react'
 import { useAdSettings } from '../../context/AdSettingsContext'
+import { useLanguage } from '../../lib/i18n/LanguageContext'
+import { SITE_NAME, BASE_URL } from '../../lib/seo'
+import type { AdFormat, AdScriptItem } from '../../lib/supabase'
 
 const Page = styled.div`
-  min-height: 100vh; background: #080810;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  padding: 24px; position: relative; overflow: hidden;
+  min-height: 100vh; position: relative; padding: 24px;
+  display: flex; align-items: center; justify-content: center;
 `
 
 const Bg = styled.div`
-  position: absolute; inset: 0;
-  background-image: radial-gradient(circle, rgba(124,58,237,0.05) 1px, transparent 1px);
-  background-size: 32px 32px;
+  position: absolute; inset: 0; z-index: 0;
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px;
+  padding: 18px;
+  pointer-events: none;
+  background: radial-gradient(circle at top left, rgba(124,58,237,0.22), transparent 28%),
+              radial-gradient(circle at bottom right, rgba(6,182,212,0.16), transparent 32%),
+              rgba(2,6,23,0.88);
+  backdrop-filter: blur(12px);
+  overflow: hidden;
+
+  @media (max-width: 768px) {
+    display: none;
+  }
 `
+
 
 const Card = styled.div`
   position: relative; z-index: 1;
-  background: rgba(14,14,26,0.95); backdrop-filter: blur(20px);
-  border: 1px solid rgba(124,58,237,0.25); border-radius: 24px;
-  padding: 40px; max-width: 560px; width: 100%; text-align: center;
-  box-shadow: 0 0 60px rgba(124,58,237,0.15);
-  animation: fadeIn 0.4s ease;
+  background: rgba(9,10,18,0.97); backdrop-filter: blur(12px);
+  border: 1px solid rgba(124,58,237,0.18); border-radius: 24px;
+  padding: 24px; max-width: 620px; width: min(100%, 620px); text-align: center;
+  box-shadow: 0 16px 54px rgba(0,0,0,0.35);
+  animation: fadeIn 0.32s ease;
   @keyframes fadeIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+
+  @media (max-width: 768px) {
+    padding: 18px;
+    border-radius: 20px;
+  }
 `
 
-const AdFrame = styled.iframe`
-  width: 100%; height: 250px; border: none; border-radius: 12px;
-  background: rgba(18,18,31,0.8); border: 1px solid rgba(124,58,237,0.15);
-  margin: 24px 0;
+const ModalHeader = styled.div`
+  display: flex; align-items: center; gap: 12px; margin-bottom: 12px; text-align: left;
+`
+const LogoImg = styled.img`
+  width: 44px; height: 44px; border-radius: 8px; object-fit: cover; border: 1px solid rgba(255,255,255,0.04);
+`
+const SiteMeta = styled.div`
+  display: flex; flex-direction: column; gap: 2px;
+`
+const SiteName = styled.div`
+  font-weight: 800; font-size: 16px; color: #fff;
+`
+const SiteUrl = styled.a`
+  font-size: 12px; color: rgba(148,163,184,0.6); text-decoration: none;
+`
+const PreviewAreaWrap = styled.div`
+  position: relative; width: 100%; margin: 24px 0;
+  @media (max-width: 768px) {
+    margin: 18px 0;
+  }
 `
 
-const AdPlaceholder = styled.div`
-  width: 100%; height: 250px; border-radius: 12px;
-  background: rgba(18,18,31,0.8); border: 1px dashed rgba(124,58,237,0.25);
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 8px; margin: 24px 0; color: rgba(148,163,184,0.4); font-size: 13px;
+const float = keyframes`
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+`
+
+const shimmer = keyframes`
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+`
+
+const DownloadPreviewCard = styled.div`
+  width: 100%;
+  border-radius: 20px;
+  background: rgba(20,20,34,0.95);
+  border: 1px solid rgba(124,58,237,0.16);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.03);
+  padding: 32px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  min-height: 200px;
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      135deg,
+      rgba(124,58,237,0.06) 0%,
+      transparent 40%,
+      transparent 60%,
+      rgba(6,182,212,0.06) 100%
+    );
+    pointer-events: none;
+  }
+`
+
+const DownloadIcon = styled.div`
+  width: 64px; height: 64px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(124,58,237,0.2), rgba(6,182,212,0.15));
+  border: 1px solid rgba(124,58,237,0.25);
+  display: flex; align-items: center; justify-content: center;
+  animation: ${float} 3s ease-in-out infinite;
+`
+
+const UrlBar = styled.div`
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(255,255,255,0.06);
+  max-width: 100%;
+  overflow: hidden;
+`
+
+const UrlText = styled.span`
+  font-size: 12px;
+  color: rgba(148,163,184,0.6);
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 350px;
+`
+
+const ShimmerBar = styled.div`
+  width: 80%; height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(
+    90deg,
+    rgba(124,58,237,0.1) 25%,
+    rgba(124,58,237,0.35) 50%,
+    rgba(124,58,237,0.1) 75%
+  );
+  background-size: 200% 100%;
+  animation: ${shimmer} 2s linear infinite;
+`
+
+/* ── iframe layer sits on top of the preview card ── */
+const IframeScroller = styled.div`
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  overflow-y: auto;
+  overflow-x: hidden;
+  border-radius: 20px;
+  -webkit-overflow-scrolling: touch;
+`
+
+const PreviewIframe = styled.iframe`
+  width: 100%;
+  height: 5000px;
+  border: none;
+  background: transparent;
+  pointer-events: none;
+  display: block;
 `
 
 const CountdownRing = styled.div`
@@ -64,17 +194,44 @@ const ProceedBtn = styled.button`
 
 const SkipNote = styled.p`font-size: 12px; color: rgba(148,163,184,0.4); margin-top: 14px;`
 
+const AD_FORMATS: AdFormat[] = ['Popunder', 'Smartlink', 'Native Banner', 'Social Bar', 'Banner']
+
+const resolveAdScriptItems = (raw: any, fallbackUrl?: string | null): AdScriptItem[] => {
+  if (Array.isArray(raw)) {
+    return raw
+      .map((item: any) => {
+        if (typeof item === 'string') {
+          return { code: item.trim(), format: 'Banner' as AdFormat }
+        }
+
+        const code = String(item?.code || item?.script || item?.url || '').trim()
+        const candidate = String(item?.format || 'Banner') as AdFormat
+        const format: AdFormat = AD_FORMATS.includes(candidate) ? candidate : 'Banner'
+        return { code, format }
+      })
+      .filter(item => item.code)
+  }
+  if (fallbackUrl) {
+    return [{ code: fallbackUrl.trim(), format: 'Banner' }]
+  }
+  return []
+}
+
 export default function InterstitialPage() {
   const [params] = useSearchParams()
   const navigate = useNavigate()
   const { adSettings, loading } = useAdSettings()
+  const { t } = useLanguage()
   const targetUrl = params.get('url') ? decodeURIComponent(params.get('url')!) : null
   const cloudName = params.get('cloud') ? decodeURIComponent(params.get('cloud')!) : 'Cloud'
   const adAttempted = params.get('ad') === '1'
   const [countdown, setCountdown] = useState(10)
   const [ready, setReady] = useState(false)
   const [adOpened, setAdOpened] = useState<boolean>(adAttempted)
-  const adScripts: string[] = (adSettings as any)?.ad_scripts && Array.isArray((adSettings as any).ad_scripts) ? (adSettings as any).ad_scripts : (adSettings?.ad_url ? [adSettings.ad_url] : [])
+  const adScriptItems = useMemo(
+    () => resolveAdScriptItems((adSettings as any)?.ad_scripts, adSettings?.ad_url || null),
+    [adSettings?.ad_scripts, adSettings?.ad_url]
+  )
 
   const isFullScript = (s: string) => /<script[\s\S]*?>[\s\S]*?<\/script>/i.test(s) || /function\s+adsterra|adsterra\.com|adsterra/i.test(s)
   const isNumericId = (s: string) => /^[0-9]{4,}$/.test(s)
@@ -101,67 +258,99 @@ export default function InterstitialPage() {
     return () => clearInterval(interval)
   }, [targetUrl, loading, totalSeconds])
 
-  // Inject ad scripts array into page (multiple entries)
+  // ── Inject ad scripts into document.body (background ads) ──
   useEffect(() => {
-    if (!adScripts || adScripts.length === 0) return
-    const injectedEls: Element[] = []
+    if (!adScriptItems || adScriptItems.length === 0) return
+    const injectedEls: HTMLElement[] = []
+    const timeouts: ReturnType<typeof setTimeout>[] = []
 
-    adScripts.forEach((adContent, idx) => {
+    const injectToBody = (el: HTMLElement) => {
+      document.body.appendChild(el)
+      injectedEls.push(el)
+    }
+
+    console.log(`[LA-GAME Ads] Injecting ${adScriptItems.length} ad script(s)…`)
+
+    adScriptItems.forEach(({ code: adContent, format }, idx) => {
       if (!adContent) return
-      // If full script snippet, inject wrapper
+
+      console.log(`[LA-GAME Ads] Script #${idx + 1} — format: ${format}, length: ${adContent.length}`)
+
       if (isFullScript(adContent)) {
         try {
-          const wrapper = document.createElement('div')
-          wrapper.setAttribute('data-adsterra-inject', `1-${idx}`)
-          wrapper.innerHTML = adContent
-          document.body.appendChild(wrapper)
-          injectedEls.push(wrapper)
+          const temp = document.createElement('div')
+          temp.innerHTML = adContent
+          const scriptElements = Array.from(temp.querySelectorAll('script'))
+
+          scriptElements.forEach(scriptEl => {
+            const newScript = document.createElement('script')
+            if (scriptEl.src) {
+              newScript.src = scriptEl.src
+              newScript.async = true
+            } else {
+              newScript.text = scriptEl.innerHTML || ''
+            }
+            if (scriptEl.type) newScript.type = scriptEl.type
+
+            const tid = setTimeout(() => {
+              injectToBody(newScript)
+              console.log(`[LA-GAME Ads] ✅ Injected script #${idx + 1} (${format}) into <body>`)
+            }, idx * 150)
+            timeouts.push(tid)
+          })
+
           setAdOpened(true)
         } catch (err) {
-          console.warn('Failed to inject ad script', err)
+          console.warn('[LA-GAME Ads] ❌ Failed to inject ad script', err)
         }
         return
       }
 
-      // If numeric id, append loader script
       if (isNumericId(adContent)) {
         try {
           const script = document.createElement('script')
           script.setAttribute('data-adsterra-loader', `1-${idx}`)
           script.type = 'text/javascript'
           script.text = `window._adsterra_zone='${adContent}'; (function(){var s=document.createElement('script');s.async=true;s.src='https://a.adsterra.com/loader.js';var e=document.getElementsByTagName('script')[0];e.parentNode.insertBefore(s,e);})();`
-          document.body.appendChild(script)
-          injectedEls.push(script)
+          const tid = setTimeout(() => injectToBody(script), idx * 150)
+          timeouts.push(tid)
           setAdOpened(true)
         } catch (err) {
-          console.warn('Failed to insert adsterra loader with id', err)
+          console.warn('[LA-GAME Ads] ❌ Failed to insert adsterra loader with id', err)
         }
         return
       }
 
-      // If URL, create iframe placeholder in the ad area
-      try {
-        const iframe = document.createElement('iframe')
-        iframe.src = adContent
-        iframe.width = '100%'
-        iframe.height = '250'
-        iframe.style.border = 'none'
-        iframe.setAttribute('data-adsterra-iframe', `1-${idx}`)
-        const container = document.getElementById('ad-placeholder')
-        if (container) {
-          container.appendChild(iframe)
-          injectedEls.push(iframe)
+      if (/^https?:\/\//i.test(adContent)) {
+        try {
+          const script = document.createElement('script')
+          script.src = adContent
+          script.async = true
+          const tid = setTimeout(() => injectToBody(script), idx * 150)
+          timeouts.push(tid)
           setAdOpened(true)
+        } catch (err) {
+          console.warn('[LA-GAME Ads] ❌ Failed to inject external script url', err)
         }
+        return
+      }
+
+      // fallback: plain text
+      try {
+        const wrapper = document.createElement('div')
+        wrapper.innerText = adContent
+        document.body.appendChild(wrapper)
+        injectedEls.push(wrapper)
       } catch (err) {
-        console.warn('Failed to inject ad iframe', err)
+        console.warn('[LA-GAME Ads] ❌ Failed to inject ad fallback content', err)
       }
     })
 
     return () => {
+      timeouts.forEach(tid => clearTimeout(tid))
       injectedEls.forEach(el => { if (el && el.parentNode) el.parentNode.removeChild(el) })
     }
-  }, [adScripts])
+  }, [adScriptItems])
 
   const openAdFallback = () => {
     if (!adSettings?.ad_url) return
@@ -192,27 +381,61 @@ export default function InterstitialPage() {
     <Page>
       <Bg />
       <Card>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 6 }}>
+        <ModalHeader>
+          <LogoImg src="/LOGO.png" alt={SITE_NAME} />
+          <SiteMeta>
+            <SiteName>{SITE_NAME}</SiteName>
+            <SiteUrl href={BASE_URL} target="_blank" rel="noopener noreferrer">{BASE_URL.replace(/^https?:\/\//, '')}</SiteUrl>
+          </SiteMeta>
+        </ModalHeader>
+
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
           <Shield size={16} style={{ color: '#7c3aed' }} />
-          <span style={{ fontSize: 13, color: 'rgba(148,163,184,0.6)', fontWeight: 600 }}>Preparing your download</span>
+          <span style={{ fontSize: 13, color: 'rgba(148,163,184,0.75)', fontWeight: 600 }}>{t('dl.modal.preparing')}</span>
         </div>
 
         <h2 style={{ fontFamily: 'Noto Sans Lao', fontSize: 22, fontWeight: 800, color: '#fff', marginBottom: 6 }}>
-          Downloading from {cloudName}
+          {t('dl.modal.heading').replace('{cloud}', cloudName)}
         </h2>
-        <p style={{ fontSize: 13, color: 'rgba(148,163,184,0.5)', marginBottom: 20 }}>
-          Please wait while we prepare your download link
+        <p style={{ fontSize: 13, color: 'rgba(148,163,184,0.5)', marginBottom: 12 }}>
+          {t('dl.modal.wait_message')}
+        </p>
+        <p style={{ fontSize: 13, color: 'rgba(148,163,184,0.6)', marginBottom: 16, fontWeight: 600 }}>
+          {t('dl.modal.safe_notice')}
         </p>
 
-        {/* Ad Area */}
-        {adSettings?.ad_url ? (
-          <AdFrame src={adSettings.ad_url} sandbox="allow-scripts allow-same-origin" title="Advertisement" />
-        ) : (
-          <AdPlaceholder>
-            <div style={{ fontSize: 32 }}>📢</div>
-            <span>Advertisement</span>
-          </AdPlaceholder>
-        )}
+        {/* ── Download Preview: iframe on top, fallback card behind ── */}
+        <PreviewAreaWrap>
+          <DownloadPreviewCard>
+            {/* Fallback layer: always visible as background */}
+            <DownloadIcon>
+              <Download size={28} style={{ color: '#a78bfa' }} />
+            </DownloadIcon>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: 16, fontWeight: 700, color: '#fff', marginBottom: 4, fontFamily: 'Noto Sans Lao' }}>
+                {cloudName}
+              </div>
+              <div style={{ fontSize: 12, color: 'rgba(148,163,184,0.5)' }}>
+                {t('dl.modal.wait_message')}
+              </div>
+            </div>
+            <UrlBar>
+              <Lock size={12} style={{ color: '#22c55e', flexShrink: 0 }} />
+              <UrlText>{targetUrl}</UrlText>
+            </UrlBar>
+            <ShimmerBar />
+
+            {/* iframe layer: loads on top — if site blocks, fallback card shows through */}
+            <IframeScroller>
+              <PreviewIframe
+                src={targetUrl}
+                sandbox="allow-scripts allow-same-origin"
+                title="Download Link Preview"
+                loading="lazy"
+              />
+            </IframeScroller>
+          </DownloadPreviewCard>
+        </PreviewAreaWrap>
 
         {/* Countdown */}
         {!ready ? (
@@ -227,12 +450,12 @@ export default function InterstitialPage() {
               <CountdownNum>{countdown}</CountdownNum>
             </CountdownRing>
             <p style={{ fontSize: 13, color: 'rgba(148,163,184,0.5)' }}>
-              <Clock size={13} style={{ verticalAlign: 'middle' }} /> Download link available in {countdown}s
+              <Clock size={13} style={{ verticalAlign: 'middle' }} /> {t('dl.modal.available_in').replace('{s}', String(countdown))}
             </p>
             {!adOpened && adSettings?.ad_url && (
               <div style={{ marginTop: 12 }}>
                 <ProceedBtn onClick={openAdFallback} style={{ width: 'auto', padding: '8px 12px' }}>
-                  Open Ad (if blocked)
+                  {t('dl.modal.open_ad_fallback')}
                 </ProceedBtn>
               </div>
             )}
@@ -240,12 +463,12 @@ export default function InterstitialPage() {
         ) : (
           <ProceedBtn onClick={proceed}>
             <CheckCircle size={20} />
-            Proceed to Download
+            {t('dl.modal.proceed')}
             <ExternalLink size={16} />
           </ProceedBtn>
         )}
 
-        <SkipNote>Ad revenue helps us keep this site free ♥</SkipNote>
+        <SkipNote>{t('dl.modal.ad_revenue_note')}</SkipNote>
       </Card>
     </Page>
   )

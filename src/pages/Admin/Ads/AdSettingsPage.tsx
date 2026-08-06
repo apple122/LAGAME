@@ -1,16 +1,22 @@
 import { useState, useEffect } from 'react'
-import styled from 'styled-components'
-import { Save, Loader2, CheckCircle, AlertCircle, Megaphone, Clock } from 'lucide-react'
+import styled, { keyframes } from 'styled-components'
+import { Save, Loader2, CheckCircle, AlertCircle, Megaphone, Clock, Plus, Trash2, Code2, LayoutTemplate } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
+import type { AdFormat, AdScriptItem } from '../../../lib/supabase'
 import { useAdSettings } from '../../../context/AdSettingsContext'
 import {
   AdminPage, PageHeader, PageTitle, PageSubTitle,
   Card, CardHeader, CardTitle,
-  TwoCol, Field, Label, TextArea, Hint,
+  TwoCol, Field, Label, TextArea, Select, Hint,
   PrimaryBtn,
-  Alert, Divider,
+  Alert, Badge, Divider,
   ToggleRow, ToggleLabel, ToggleHint, TogglePill
 } from '../adminStyles'
+
+const fadeIn = keyframes`
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+`
 
 const StepItem = styled.div`
   display: flex; align-items: flex-start; gap: 14px;
@@ -38,19 +44,130 @@ const RangeWrap = styled.div`
   }
 `
 
+const AdItemCard = styled.div`
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  animation: ${fadeIn} 0.3s ease;
+  transition: all 0.2s ease;
+  &:hover {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(124,58,237,0.3);
+  }
+`
+
+const AdItemHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 12px;
+  border-bottom: 1px dashed rgba(255,255,255,0.1);
+`
+
+const InputGroup = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`
+
+const InputLabel = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #a78bfa;
+`
+
+const RemoveBtn = styled.button`
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 10px;
+  color: #fca5a5;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+  &:hover {
+    background: rgba(239, 68, 68, 0.2);
+    border-color: rgba(239, 68, 68, 0.4);
+    color: #f87171;
+  }
+`
+
+const AddBtn = styled.button`
+  background: linear-gradient(135deg, rgba(124,58,237,0.8), rgba(6,182,212,0.8));
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 12px;
+  color: #fff;
+  padding: 14px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  transition: all 0.2s ease;
+  &:hover {
+    background: linear-gradient(135deg, rgba(124,58,237,1), rgba(6,182,212,1));
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(124,58,237,0.3);
+  }
+  &:active {
+    transform: translateY(1px);
+  }
+`
+
 export default function AdSettingsPage() {
+  const AD_FORMATS: AdFormat[] = ['Popunder', 'Smartlink', 'Native Banner', 'Social Bar', 'Banner']
+  const FORMAT_COLOR: Record<AdFormat, string> = {
+    Popunder: '#ef4444',
+    'Social Bar': '#3b82f6',
+    Smartlink: '#8b5cf6',
+    'Native Banner': '#f59e0b',
+    Banner: '#10b981',
+  }
+
   const { adSettings, refresh } = useAdSettings()
-  const [adUrl, setAdUrl] = useState('')
-  const [scripts, setScripts] = useState<string[]>([])
+  const [scriptItems, setScriptItems] = useState<AdScriptItem[]>([])
   const [countdown, setCountdown] = useState(10)
   const [isActive, setIsActive] = useState(false)
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
+  const normalizeAdScriptItem = (item: any): AdScriptItem => {
+    if (!item) return { code: '', format: 'Banner' }
+    if (typeof item === 'string') return { code: item, format: 'Banner' }
+
+    const code = String(item.code || item.script || item.url || '').trim()
+    const candidate = String(item.format || 'Banner') as AdFormat
+    const format: AdFormat = AD_FORMATS.includes(candidate) ? candidate : 'Banner'
+    return { code, format }
+  }
+
+  const buildScriptItems = (raw: any, legacyUrl?: string | null): AdScriptItem[] => {
+    if (Array.isArray(raw)) {
+      return raw.map(normalizeAdScriptItem).filter((item): item is AdScriptItem => Boolean(item.code || item.format))
+    }
+    if (legacyUrl) {
+      return [{ code: legacyUrl, format: 'Banner' }]
+    }
+    return []
+  }
+
   useEffect(() => {
     if (adSettings) {
-      setAdUrl(adSettings.ad_url || '')
-      setScripts((adSettings as any).ad_scripts && Array.isArray((adSettings as any).ad_scripts) ? (adSettings as any).ad_scripts : (adSettings.ad_url ? [adSettings.ad_url] : []))
+      setScriptItems(buildScriptItems((adSettings as any).ad_scripts, adSettings.ad_url || null))
       setCountdown(adSettings.countdown_seconds || 10)
       setIsActive(adSettings.is_active)
     }
@@ -59,7 +176,13 @@ export default function AdSettingsPage() {
   const handleSave = async () => {
     setSaving(true); setMsg(null)
     const id = adSettings?.id
-    const payload = { ad_url: adUrl, ad_scripts: scripts, countdown_seconds: countdown, is_active: isActive, updated_at: new Date().toISOString() }
+    const payload = {
+      ad_url: scriptItems[0]?.code || '',
+      ad_scripts: scriptItems.map(item => ({ code: item.code, format: item.format })),
+      countdown_seconds: countdown,
+      is_active: isActive,
+      updated_at: new Date().toISOString(),
+    }
     let error
     if (id) {
       const res = await (supabase.from('ad_settings') as any).update(payload).eq('id', id)
@@ -74,6 +197,18 @@ export default function AdSettingsPage() {
     setTimeout(() => setMsg(null), 3000)
   }
 
+  const addNewScript = () => {
+    setScriptItems(prev => [...prev, { code: '', format: 'Popunder' }])
+  }
+
+  const updateScriptItem = (index: number, key: keyof AdScriptItem, value: any) => {
+    setScriptItems(prev => prev.map((item, i) => i === index ? { ...item, [key]: value } : item))
+  }
+
+  const removeScriptItem = (index: number) => {
+    setScriptItems(prev => prev.filter((_, i) => i !== index))
+  }
+
   return (
     <AdminPage $maxWidth="800px">
       <PageHeader>
@@ -82,7 +217,7 @@ export default function AdSettingsPage() {
             <Megaphone size={26} style={{ color: '#f59e0b' }} />
             Ad Settings
           </PageTitle>
-          <PageSubTitle>Configure interstitial ads shown before download links.</PageSubTitle>
+          <PageSubTitle>Configure multiple interstitial ads shown before download links.</PageSubTitle>
         </div>
         <PrimaryBtn onClick={handleSave} disabled={saving}>
           {saving
@@ -119,44 +254,56 @@ export default function AdSettingsPage() {
           <Divider />
 
           <Field>
-            <Label>Ad Script / Ad Code</Label>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {scripts.map((s, idx) => (
-                <div key={idx} style={{ position: 'relative', display: 'flex', gap: 8 }}>
-                  <TextArea
-                    placeholder="Paste full ad script tag or zone id"
-                    value={s}
-                    onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setScripts(v => v.map((x, i) => i === idx ? e.target.value : x))}
-                    style={{ flex: 1, height: 56, minHeight: 48, maxHeight: 96, resize: 'vertical', paddingRight: 44 }}
-                  />
-                  <button
-                    aria-label={`Remove script ${idx + 1}`}
-                    onClick={() => setScripts(v => v.filter((_, i) => i !== idx))}
-                    style={{
-                      position: 'absolute', right: 8, top: 8,
-                      background: 'transparent', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 6, padding: '6px 8px', color: '#fff', cursor: 'pointer', height: 32
-                    }}
-                  >Remove</button>
-                </div>
+            <Label>Manage Ad Scripts</Label>
+            <Hint style={{ marginBottom: 16 }}>
+              Separate your ads clearly. For each ad, select its format and paste the provided script code.
+            </Hint>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {scriptItems.map((item, idx) => (
+                <AdItemCard key={idx}>
+                  <AdItemHeader>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{ color: '#fff', fontSize: 14, fontWeight: 700 }}>Ad Script #{idx + 1}</div>
+                      <Badge $color={FORMAT_COLOR[item.format]}>{item.format}</Badge>
+                    </div>
+                    <RemoveBtn type="button" onClick={() => removeScriptItem(idx)}>
+                      <Trash2 size={14} /> Remove
+                    </RemoveBtn>
+                  </AdItemHeader>
+
+                  <InputGroup>
+                    <InputLabel><LayoutTemplate size={14} /> Ad Format</InputLabel>
+                    <Select
+                      value={item.format}
+                      onChange={(e: any) => updateScriptItem(idx, 'format', e.target.value)}
+                      style={{ background: 'rgba(0,0,0,0.2)' }}
+                    >
+                      {AD_FORMATS.map(format => (
+                        <option key={format} value={format}>{format}</option>
+                      ))}
+                    </Select>
+                  </InputGroup>
+
+                  <InputGroup>
+                    <InputLabel><Code2 size={14} /> Script Code / Zone ID</InputLabel>
+                    <TextArea
+                      placeholder="<script src='...'></script>"
+                      value={item.code}
+                      onChange={(e: any) => updateScriptItem(idx, 'code', e.target.value)}
+                      style={{ minHeight: 90, maxHeight: 180, resize: 'vertical', background: 'rgba(0,0,0,0.2)', fontFamily: 'monospace', fontSize: 13 }}
+                    />
+                  </InputGroup>
+                </AdItemCard>
               ))}
 
-              <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-                <TextArea
-                  placeholder="Paste full ad script tag or zone id"
-                  value={adUrl}
-                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setAdUrl(e.target.value)}
-                  style={{ flex: 1, height: 56, minHeight: 48, maxHeight: 96, resize: 'vertical' }}
-                />
-                <button
-                  onClick={() => { if (adUrl && adUrl.trim()) { setScripts(v => [...v, adUrl.trim()]); setAdUrl('') } }}
-                  style={{ background: 'linear-gradient(135deg,#7c3aed,#06b6d4)', border: 'none', borderRadius: 8, padding: '10px 14px', color: '#fff', cursor: 'pointer', height: 40 }}
-                >+ Add</button>
-              </div>
+              <AddBtn type="button" onClick={addNewScript}>
+                <Plus size={18} /> Add New Ad Script
+              </AddBtn>
             </div>
-            <Hint>
-              You can paste the full ad script, a numeric zone ID, or an ad URL. Add multiple scripts; they will be injected in order.
-            </Hint>
           </Field>
+
+          <Divider />
 
           <Field>
             <Label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -188,9 +335,9 @@ export default function AdSettingsPage() {
             ['1', 'User clicks a Cloud download button on a game page'],
             ['2', 'System checks if ads are enabled (Ad Status toggle above)'],
             ['3', `If ENABLED: User sees an interstitial ad with ${countdown}s countdown`],
-            ['4', '"Proceed to Download" button appears after countdown ends'],
-            ['5', 'User clicks Proceed → download link opens in new tab'],
-            ['6', 'If DISABLED: Download link opens directly without any ad'],
+            ['4', 'The system will load and render ALL active ad scripts above simultaneously'],
+            ['5', '"Proceed to Download" button appears after countdown ends'],
+            ['6', 'User clicks Proceed → download link opens in new tab'],
           ].map(([num, text]) => (
             <StepItem key={num}>
               <StepNum>{num}</StepNum>
