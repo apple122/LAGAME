@@ -160,6 +160,7 @@ export default function AddGame() {
   const [pendingScreenshotFiles, setPendingScreenshotFiles] = useState<Map<string, File>>(new Map())
   const [dragIndex, setDragIndex] = useState<number | null>(null)
   const [coverImgError, setCoverImgError] = useState(false)
+  const [coverImgSrc, setCoverImgSrc] = useState('')
 
   useEffect(() => {
     supabase.from('categories').select('*').order('name').then(({ data }) => setCategories(data || []))
@@ -167,6 +168,13 @@ export default function AddGame() {
 
   // Auto-generate slug from title
   useEffect(() => { setSlug(slugify(title)) }, [title])
+
+  // Sync cover preview src + reset error state when URL changes
+  useEffect(() => {
+    setCoverImgSrc(coverImage)
+    setCoverImgError(false)
+  }, [coverImage])
+
 
   // ── Gemini AI Auto-Fill ─────────────────────────────────────────
   const handleAiGenerate = async () => {
@@ -609,16 +617,23 @@ Return ONLY the raw JSON object. No markdown, no code blocks, no explanation.`
           {coverImage && !coverImgError && (
             <CoverPreview>
               <CoverImg
-                src={coverImage}
+                src={coverImgSrc}
                 alt="Cover"
                 onLoad={() => setCoverImgError(false)}
-                onError={() => setCoverImgError(true)}
+                onError={() => {
+                  const proxy = `https://corsproxy.io/?${encodeURIComponent(coverImage)}`
+                  if (coverImgSrc !== proxy) {
+                    setCoverImgSrc(proxy)
+                  } else {
+                    setCoverImgError(true)
+                  }
+                }}
               />
             </CoverPreview>
           )}
           {coverImage && coverImgError && (
             <div style={{ marginTop: 10, padding: '10px 14px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 8, fontSize: 12, color: '#f87171' }}>
-              ⚠️ ไม่สามารถโหลดรูปจาก URL นี้ได้ (อาจถูก CORS บล็อก) — ลองใช้ปุ่ม "เลือกไฟล์" แทนครับ
+              ⚠️ ไม่สามารถโหลดรูปได้ — ลองใช้ปุ่ม "เลือกไฟล์" หรือวาง URL อื่นแทนครับ
             </div>
           )}
         </Field>

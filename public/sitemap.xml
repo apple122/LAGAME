@@ -21,6 +21,18 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://example.com/game/assassin-s-creed-revelations</loc>
+    <lastmod>2026-08-07T21:31:50.360Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://example.com/game/assassin-s-creed-iii</loc>
+    <lastmod>2026-08-07T21:08:17.880Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
     <loc>https://example.com/game/assassin-s-creed-rogue</loc>
     <lastmod>2026-08-07T21:06:00.670Z</lastmod>
     <changefreq>weekly</changefreq>

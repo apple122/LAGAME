@@ -132,6 +132,7 @@ export default function EditGame() {
   const [pendingScreenshotFiles, setPendingScreenshotFiles] = useState<Map<string, File>>(new Map())
   const [dragIndex, setDragIndex] = useState<number | null>(null)
   const [coverImgError, setCoverImgError] = useState(false)
+  const [coverImgSrc, setCoverImgSrc] = useState('')
 
   const [aiQuery, setAiQuery] = useState('')
   const [aiLoading, setAiLoading] = useState(false)
@@ -149,6 +150,12 @@ export default function EditGame() {
       } else { alert('ไม่พบ URL รูปภาพใน Clipboard') }
     } catch { alert('ไม่สามารถอ่าน Clipboard ได้') }
   }
+
+  // Sync cover preview src + reset error when URL changes
+  useEffect(() => {
+    setCoverImgSrc(coverImage)
+    setCoverImgError(false)
+  }, [coverImage])
 
   const handlePasteScreenshot = async () => {
     try {
@@ -598,16 +605,23 @@ Return ONLY the raw JSON object. No markdown, no code blocks, no explanation.`
           {coverImage && !coverImgError && (
             <CoverPreview>
               <CoverImg
-                src={coverImage}
+                src={coverImgSrc}
                 alt="cover"
                 onLoad={() => setCoverImgError(false)}
-                onError={() => setCoverImgError(true)}
+                onError={() => {
+                  const proxy = `https://corsproxy.io/?${encodeURIComponent(coverImage)}`
+                  if (coverImgSrc !== proxy) {
+                    setCoverImgSrc(proxy)
+                  } else {
+                    setCoverImgError(true)
+                  }
+                }}
               />
             </CoverPreview>
           )}
           {coverImage && coverImgError && (
             <div style={{ marginTop: 10, padding: '10px 14px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 8, fontSize: 12, color: '#f87171' }}>
-              ⚠️ ไม่สามารถโหลดรูปจาก URL นี้ได้ (อาจถูก CORS บล็อก) — ลองใช้ปุ่ม "เลือกไฟล์" แทนครับ
+              ⚠️ ไม่สามารถโหลดรูปได้ — ลองใช้ปุ่ม "เลือกไฟล์" หรือวาง URL อื่นแทนครับ
             </div>
           )}
         </Field>
