@@ -203,17 +203,19 @@ export default function AdminDashboard() {
   const [sitePlatformModelStats, setSitePlatformModelStats] = useState<{ platform: string; device_model: string; count: number }[]>([])
   const [totalVisits, setTotalVisits] = useState(0)
   const [topGames, setTopGames] = useState<{ id: string; title: string; cover_image: string | null; view_count: number; platforms: PlatformStat[] }[]>([])
+  const [allGamePlatformStats, setAllGamePlatformStats] = useState<{ game_id: string; platform: string; view_count: number }[]>([])
   const [allGamePlatformModelStats, setAllGamePlatformModelStats] = useState<{ game_id: string; platform: string; device_model: string; view_count: number }[]>([])
 
   useEffect(() => {
     const load = async () => {
       // Basic stats + recent games
-      const [{ count: gc }, { count: cc }, { data: games }] = await Promise.all([
+      const [{ count: gc }, { count: cc }, { data: games }, { data: allViews }] = await Promise.all([
         supabase.from('games').select('id', { count: 'exact', head: true }),
         supabase.from('categories').select('id', { count: 'exact', head: true }),
         supabase.from('games').select('id,title,cover_image,view_count,created_at').order('created_at', { ascending: false }).limit(8),
+        supabase.from('games').select('view_count')
       ])
-      const totalViews = (games || []).reduce((s: number, g: any) => s + (g.view_count || 0), 0)
+      const totalViews = (allViews || []).reduce((s: number, g: any) => s + (g.view_count || 0), 0)
       setStats({ games: gc || 0, categories: cc || 0, totalViews })
       setRecentGames(games || [])
 
@@ -234,19 +236,23 @@ export default function AdminDashboard() {
         .order('view_count', { ascending: false })
         .limit(5)
 
+      const allPlatformData = await getAllGamesPlatformStats()
+      const allPlatformModelData = await getAllGamesPlatformModelStats()
+      
+      setAllGamePlatformStats(allPlatformData)
+      setAllGamePlatformModelStats(allPlatformModelData)
+
       if (topRaw && topRaw.length > 0) {
-        const allPlatformData = await getAllGamesPlatformStats()
-          const allPlatformModelData = await getAllGamesPlatformModelStats()
         const platformMap: Record<string, PlatformStat[]> = {}
         for (const row of allPlatformData) {
           if (!platformMap[row.game_id]) platformMap[row.game_id] = []
           platformMap[row.game_id].push({ platform: row.platform, count: row.view_count })
         }
-        setAllGamePlatformModelStats(allPlatformModelData)
-            setTopGames(topRaw.map((g: any) => ({
-              ...g,
-              platforms: (platformMap[g.id] || []).sort((a, b) => b.count - a.count),
-            })))
+        
+        setTopGames(topRaw.map((g: any) => ({
+          ...g,
+          platforms: (platformMap[g.id] || []).sort((a, b) => b.count - a.count),
+        })))
       }
     }
     load()
@@ -303,7 +309,7 @@ export default function AdminDashboard() {
           {(() => {
             // Aggregate game_view_platforms across all games
             const agg: Record<string, number> = {}
-            topGames.forEach(g => g.platforms.forEach(p => { agg[p.platform] = (agg[p.platform] || 0) + p.count }))
+            allGamePlatformStats.forEach(r => { agg[r.platform] = (agg[r.platform] || 0) + (r.view_count || 0) })
             const data: PlatformStat[] = Object.entries(agg).map(([platform, count]) => ({ platform, count })).sort((a, b) => b.count - a.count)
 
             // Build aggregated models across all games per platform from allGamePlatformModelStats

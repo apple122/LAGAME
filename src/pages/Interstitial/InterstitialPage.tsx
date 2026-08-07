@@ -22,7 +22,6 @@ const Bg = styled.div`
               rgba(2,6,23,0.88);
   backdrop-filter: blur(12px);
   overflow: hidden;
-
   @media (max-width: 768px) {
     display: none;
   }

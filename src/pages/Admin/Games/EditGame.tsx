@@ -18,6 +18,12 @@ function slugify(str: string) {
   return str.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
 }
 
+function getYouTubeId(url: string) {
+  if (!url) return null;
+  const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([^&]{11})/);
+  return match ? match[1] : null;
+}
+
 const CLOUD_OPTIONS = ['1fichier', 'Buzzheavier', 'DataNodes', 'Dropbox', 'Gofile', 'Google Drive', 'Hitfile', 'MEGA', 'MediaFire', 'Multiup', 'OneDrive', 'Pixeldrain', 'Turbobit', 'Zippyshare', 'Other']
 
 const LinkRow = styled.div`
@@ -125,6 +131,7 @@ export default function EditGame() {
   const [pendingCoverFile, setPendingCoverFile] = useState<File | null>(null)
   const [pendingScreenshotFiles, setPendingScreenshotFiles] = useState<Map<string, File>>(new Map())
   const [dragIndex, setDragIndex] = useState<number | null>(null)
+  const [coverImgError, setCoverImgError] = useState(false)
 
   const [aiQuery, setAiQuery] = useState('')
   const [aiLoading, setAiLoading] = useState(false)
@@ -138,7 +145,7 @@ export default function EditGame() {
       const text = await navigator.clipboard.readText()
       const url = text.trim()
       if (url && (url.startsWith('http') || url.startsWith('/'))) {
-        setCoverImage(url); setPendingCoverFile(null)
+        setCoverImage(url); setPendingCoverFile(null); setCoverImgError(false)
       } else { alert('ไม่พบ URL รูปภาพใน Clipboard') }
     } catch { alert('ไม่สามารถอ่าน Clipboard ได้') }
   }
@@ -160,6 +167,7 @@ export default function EditGame() {
     const localUrl = URL.createObjectURL(file)
     setCoverImage(localUrl)
     setPendingCoverFile(file)
+    setCoverImgError(false)
     e.target.value = ''
   }
 
@@ -183,6 +191,55 @@ export default function EditGame() {
     if (newScreenshot.trim()) {
       setScreenshots(prev => [...prev, newScreenshot.trim()])
       setNewScreenshot('')
+    }
+  }
+
+  const handleSteamFetchMedia = async () => {
+    const input = window.prompt('ใส่ Steam Store URL หรือ Steam App ID\n(เช่น 313690 หรือ https://store.steampowered.com/app/313690/...)')
+    if (!input) return
+    let appId = ''
+    if (/^\d+$/.test(input.trim())) {
+      appId = input.trim()
+    } else {
+      const match = input.match(/\/app\/(\d+)/)
+      if (match) appId = match[1]
+    }
+    
+    if (!appId) {
+      alert('ไม่พบ App ID กรุณาตรวจสอบ URL หรือ ID อีกครั้ง')
+      return
+    }
+
+    setCoverImage(`https://cdn.akamai.steamstatic.com/steam/apps/${appId}/library_600x900.jpg`)
+
+    try {
+      const steamUrl = `https://store.steampowered.com/api/appdetails?appids=${appId}&filters=screenshots`
+      const res = await fetch(`https://corsproxy.io/?${encodeURIComponent(steamUrl)}`)
+      const steamData = await res.json()
+      const appData = steamData[appId]?.data
+      
+      let newScreenshots: string[] = []
+      if (appData?.screenshots && appData.screenshots.length > 0) {
+        newScreenshots = appData.screenshots.map((s: any) => s.path_full)
+      } else {
+        for (let i = 1; i <= 8; i++) {
+          newScreenshots.push(`https://cdn.akamai.steamstatic.com/steam/apps/${appId}/ss_${i}.jpg`)
+        }
+      }
+      setScreenshots(prev => {
+        const unique = new Set([...prev, ...newScreenshots])
+        return Array.from(unique)
+      })
+    } catch (err) {
+      console.error('Failed to fetch Steam screenshots:', err)
+      let fallbackScreenshots: string[] = []
+      for (let i = 1; i <= 8; i++) {
+        fallbackScreenshots.push(`https://cdn.akamai.steamstatic.com/steam/apps/${appId}/ss_${i}.jpg`)
+      }
+      setScreenshots(prev => {
+        const unique = new Set([...prev, ...fallbackScreenshots])
+        return Array.from(unique)
+      })
     }
   }
 
@@ -234,13 +291,12 @@ Return ONLY the raw JSON object. No markdown, no code blocks, no explanation.`
     if (aiPreview.steam_app_id) {
       const appId = aiPreview.steam_app_id
       // Use vertical cover image (portrait format used in game stores)
-      steamCover = `https://steamcdn-a.akamaihd.net/steam/apps/${appId}/library_600x900.jpg`
+      steamCover = `https://cdn.akamai.steamstatic.com/steam/apps/${appId}/library_600x900.jpg`
       try {
         // Fetch screenshots from Steam Store API via CORS proxy
         const steamUrl = `https://store.steampowered.com/api/appdetails?appids=${appId}&filters=screenshots`
-        const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(steamUrl)}`)
-        const data = await res.json()
-        const steamData = JSON.parse(data.contents)
+        const res = await fetch(`https://corsproxy.io/?${encodeURIComponent(steamUrl)}`)
+        const steamData = await res.json()
         const appData = steamData[appId]?.data
         if (appData?.screenshots && appData.screenshots.length > 0) {
           steamScreenshots = appData.screenshots.slice(0, 10).map((s: any) => s.path_full)
@@ -502,12 +558,34 @@ Return ONLY the raw JSON object. No markdown, no code blocks, no explanation.`
         </Field>
         <Field><Label>Description</Label><TextArea value={description} onChange={e => setDescription(e.target.value)} /></Field>
 
-        <SectionLabel><Image size={13} /> Media (Cover, Screenshots & Video)</SectionLabel>
-        <Field><Label>Video Trailer (YouTube URL)</Label><Input placeholder="e.g. https://www.youtube.com/watch?v=..." value={videoUrl} onChange={e => setVideoUrl(e.target.value)} /></Field>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <SectionLabel style={{ marginBottom: 0 }}><Image size={13} /> Media (Cover, Screenshots & Video)</SectionLabel>
+          <FetchBtn type="button" onClick={handleSteamFetchMedia} style={{ padding: '6px 12px', background: 'rgba(124,58,237,0.2)', border: '1px solid rgba(124,58,237,0.4)', color: '#a78bfa' }}>
+            <Bot size={14} /> ดึงรูปจาก Steam
+          </FetchBtn>
+        </div>
+        <Field>
+          <Label>Video Trailer (YouTube URL)</Label>
+          <Input placeholder="e.g. https://www.youtube.com/watch?v=..." value={videoUrl} onChange={e => setVideoUrl(e.target.value)} />
+          {getYouTubeId(videoUrl) && (
+            <div style={{ marginTop: 12, borderRadius: 8, overflow: 'hidden', border: '1px solid rgba(124,58,237,0.3)', background: '#000' }}>
+              <iframe
+                width="100%"
+                height="280"
+                src={`https://www.youtube.com/embed/${getYouTubeId(videoUrl)}`}
+                title="YouTube video player"
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+                style={{ display: 'block' }}
+              ></iframe>
+            </div>
+          )}
+        </Field>
         <Field>
           <Label>Cover Image URL (or Upload)</Label>
           <FetchRow>
-            <Input value={coverImage} onChange={e => { setCoverImage(e.target.value); setPendingCoverFile(null) }} style={{ flex: 1 }} />
+            <Input value={coverImage} onChange={e => { setCoverImage(e.target.value); setPendingCoverFile(null); setCoverImgError(false) }} style={{ flex: 1 }} />
             <FetchBtn onClick={handlePasteCover} style={{ padding: '10px 14px', background: 'rgba(6,182,212,0.2)', border: '1px solid rgba(6,182,212,0.4)' }} title="วาง URL จาก Clipboard">
               📋 วาง
             </FetchBtn>
@@ -517,7 +595,21 @@ Return ONLY the raw JSON object. No markdown, no code blocks, no explanation.`
               <input type="file" accept="image/*" hidden onChange={handleUploadCover} />
             </UploadBtn>
           </FetchRow>
-          {coverImage && <CoverPreview><CoverImg src={coverImage} alt="cover" onError={e => (e.currentTarget.style.display = 'none')} /></CoverPreview>}
+          {coverImage && !coverImgError && (
+            <CoverPreview>
+              <CoverImg
+                src={coverImage}
+                alt="cover"
+                onLoad={() => setCoverImgError(false)}
+                onError={() => setCoverImgError(true)}
+              />
+            </CoverPreview>
+          )}
+          {coverImage && coverImgError && (
+            <div style={{ marginTop: 10, padding: '10px 14px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 8, fontSize: 12, color: '#f87171' }}>
+              ⚠️ ไม่สามารถโหลดรูปจาก URL นี้ได้ (อาจถูก CORS บล็อก) — ลองใช้ปุ่ม "เลือกไฟล์" แทนครับ
+            </div>
+          )}
         </Field>
 
         <Field>
@@ -600,13 +692,20 @@ Return ONLY the raw JSON object. No markdown, no code blocks, no explanation.`
               <option value="windows">Windows</option>
               <option value="macos">macOS</option>
             </Select>
-            <Select value={link.cloud_name} onChange={e => updateLink(i, 'cloud_name', e.target.value)} style={{ width: 150, padding: '9px 12px' }}>
-              {CLOUD_OPTIONS.map(o => <option key={o}>{o}</option>)}
-            </Select>
+            <Input 
+              list="cloud-options"
+              value={link.cloud_name} 
+              onChange={e => updateLink(i, 'cloud_name', e.target.value)} 
+              placeholder="Select or type..."
+              style={{ width: 150, padding: '9px 12px' }} 
+            />
             <Input placeholder="https://..." value={link.url} onChange={e => updateLink(i, 'url', e.target.value)} />
             {links.length > 1 && <IconBtn onClick={() => removeLink(i)}><Minus size={14} /></IconBtn>}
           </LinkRow>
         ))}
+        <datalist id="cloud-options">
+          {CLOUD_OPTIONS.map(o => <option key={o} value={o} />)}
+        </datalist>
         <AddLinkBtn onClick={addLink}><Plus size={14} /> Add Link</AddLinkBtn>
 
         <PrimaryBtn onClick={handleSave} disabled={saving} style={{ width: '100%', justifyContent: 'center', marginTop: 24 }}>
