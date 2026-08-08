@@ -79,43 +79,55 @@ export async function onRequestGet(context: any) {
       }
     }
 
-    if (!gameId) {
+    if (!gameId && !steamId) {
       return new Response(
         JSON.stringify({ cover: null, screenshots: [], error: `Game not found: ${gameName || steamId}` }),
         { status: 200, headers: CORS }
       )
     }
 
-    // 3. Fetch cover (portrait 600x900) and heroes (wide banners for screenshots)
-    const [coverRes, heroRes] = await Promise.all([
-      fetch(`${SGDB_BASE}/grids/game/${gameId}?dimensions=600x900&limit=3`, { headers: sgdbHeaders }),
-      fetch(`${SGDB_BASE}/heroes/game/${gameId}?limit=8`, { headers: sgdbHeaders }),
-    ])
-
+    // 3. Cover: prefer official Steam CDN (colorful box art) over SteamGridDB fan art
     let cover: string | null = null
-    if (coverRes.ok) {
-      const coverJson: any = await coverRes.json()
-      if (coverJson.success && coverJson.data?.length > 0) {
-        cover = coverJson.data[0].url
+    if (steamId) {
+      // Steam CDN always has the official library art
+      cover = `https://cdn.akamai.steamstatic.com/steam/apps/${steamId}/library_600x900.jpg`
+    } else if (gameId) {
+      // No steam_id: fallback to SteamGridDB portrait grid
+      const coverRes = await fetch(`${SGDB_BASE}/grids/game/${gameId}?dimensions=600x900&limit=1`, { headers: sgdbHeaders })
+      if (coverRes.ok) {
+        const coverJson: any = await coverRes.json()
+        if (coverJson.success && coverJson.data?.length > 0) cover = coverJson.data[0].url
       }
     }
 
-    // Fallback: any grid if portrait not found
-    if (!cover) {
-      const anyGridRes = await fetch(`${SGDB_BASE}/grids/game/${gameId}?limit=1`, { headers: sgdbHeaders })
-      if (anyGridRes.ok) {
-        const anyGridJson: any = await anyGridRes.json()
-        if (anyGridJson.success && anyGridJson.data?.length > 0) {
-          cover = anyGridJson.data[0].url
-        }
-      }
-    }
-
+    // 4. Screenshots: real gameplay shots from Steam Store API (server-side, no CORS)
     let screenshots: string[] = []
-    if (heroRes.ok) {
-      const heroJson: any = await heroRes.json()
-      if (heroJson.success && heroJson.data?.length > 0) {
-        screenshots = heroJson.data.map((item: any) => item.url)
+    const steamAppId = steamId || null
+
+    if (steamAppId) {
+      try {
+        const steamUrl = `https://store.steampowered.com/api/appdetails?appids=${steamAppId}&filters=screenshots`
+        const steamRes = await fetch(steamUrl)
+        if (steamRes.ok) {
+          const steamData: any = await steamRes.json()
+          const appData = steamData[steamAppId]?.data
+          if (appData?.screenshots?.length > 0) {
+            screenshots = appData.screenshots.slice(0, 10).map((s: any) => s.path_full)
+          }
+        }
+      } catch (e) {
+        console.error('Steam Store API error:', e)
+      }
+    }
+
+    // Fallback: SteamGridDB heroes if Steam gave no screenshots
+    if (screenshots.length === 0 && gameId) {
+      const heroRes = await fetch(`${SGDB_BASE}/heroes/game/${gameId}?limit=8`, { headers: sgdbHeaders })
+      if (heroRes.ok) {
+        const heroJson: any = await heroRes.json()
+        if (heroJson.success && heroJson.data?.length > 0) {
+          screenshots = heroJson.data.map((item: any) => item.url)
+        }
       }
     }
 
