@@ -21,6 +21,48 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://example.com/game/monster-hunter-stories-3-twisted-reflection</loc>
+    <lastmod>2026-08-08T14:33:59.273Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://example.com/game/rise-of-the-tomb-raider-20-year-celebration</loc>
+    <lastmod>2026-08-08T14:27:23.707Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://example.com/game/shadow-of-the-tomb-raider-definitive-edition</loc>
+    <lastmod>2026-08-08T14:24:03.739Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://example.com/game/tomb-raider-goty-edition</loc>
+    <lastmod>2026-08-08T14:22:43.303Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://example.com/game/rise-of-the-tomb-raider</loc>
+    <lastmod>2026-08-08T14:20:44.546Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://example.com/game/assassin-s-creed-odyssey</loc>
+    <lastmod>2026-08-08T14:13:31.345Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://example.com/game/assassin-s-creed-liberation-hd</loc>
+    <lastmod>2026-08-08T14:08:34.145Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
     <loc>https://example.com/game/assassin-s-creed-revelations</loc>
     <lastmod>2026-08-07T21:31:50.360Z</lastmod>
     <changefreq>weekly</changefreq>

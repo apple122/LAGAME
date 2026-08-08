@@ -17,15 +17,19 @@ const supabase = createClient(supabaseUrl, supabaseKey, { auth: { persistSession
 const staticRoutes = ['/', '/az-filter', '/top-games', '/comments']
 
 async function generate() {
-  const { data: games, error } = await supabase
-    .from('games')
-    .select('slug, updated_at, created_at')
-    .order('updated_at', { ascending: false })
-    .limit(1000)
+  let games = []
+  try {
+    const { data, error } = await supabase
+      .from('games')
+      .select('slug, updated_at, created_at')
+      .order('updated_at', { ascending: false })
+      .limit(1000)
 
-  if (error) {
-    console.error('Failed to fetch games for sitemap:', error.message)
-    process.exit(1)
+    if (error) throw error;
+    games = data || [];
+  } catch (err) {
+    console.error('Failed to fetch games for sitemap:', err.message || err)
+    // Proceed with static routes only instead of failing the build
   }
 
   const slugEntries = (games || []).map((game) => ({

@@ -6,6 +6,7 @@ import { supabase, uploadImage } from '../../../lib/supabase'
 import type { Category } from '../../../lib/supabase'
 import MultiSelectCategory from '../../../components/MultiSelectCategory'
 import { generateGameData } from '../../../lib/gemini'
+import { fetchSteamGridDbImages } from '../../../lib/steamgriddb'
 import {
   AdminPage, PageHeader, PageTitle, BackBtn,
   Card, SectionLabel,
@@ -217,36 +218,29 @@ export default function EditGame() {
       return
     }
 
-    setCoverImage(`https://cdn.akamai.steamstatic.com/steam/apps/${appId}/library_600x900.jpg`)
-
     try {
-      const steamUrl = `https://store.steampowered.com/api/appdetails?appids=${appId}&filters=screenshots`
-      const res = await fetch(`https://corsproxy.io/?${encodeURIComponent(steamUrl)}`)
-      const steamData = await res.json()
-      const appData = steamData[appId]?.data
-      
-      let newScreenshots: string[] = []
-      if (appData?.screenshots && appData.screenshots.length > 0) {
-        newScreenshots = appData.screenshots.map((s: any) => s.path_full)
-      } else {
-        for (let i = 1; i <= 8; i++) {
-          newScreenshots.push(`https://cdn.akamai.steamstatic.com/steam/apps/${appId}/ss_${i}.jpg`)
-        }
+      const sgdbImages = await fetchSteamGridDbImages('', Number(appId))
+      if (sgdbImages.cover) setCoverImage(sgdbImages.cover)
+      else setCoverImage(`https://cdn.akamai.steamstatic.com/steam/apps/${appId}/library_600x900.jpg`)
+
+      let screenshots = sgdbImages.screenshots
+      if (screenshots.length === 0) {
+        try {
+          const steamUrl = `https://store.steampowered.com/api/appdetails?appids=${appId}&filters=screenshots`
+          const res = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(steamUrl)}`)
+          const steamData = await res.json()
+          const appData = steamData[appId]?.data
+          if (appData?.screenshots?.length > 0) {
+            screenshots = appData.screenshots.map((s: any) => s.path_full)
+          }
+        } catch { /* silent */ }
       }
-      setScreenshots(prev => {
-        const unique = new Set([...prev, ...newScreenshots])
-        return Array.from(unique)
-      })
+      if (screenshots.length > 0) {
+        setScreenshots(prev => Array.from(new Set([...prev, ...screenshots])))
+      }
     } catch (err) {
-      console.error('Failed to fetch Steam screenshots:', err)
-      let fallbackScreenshots: string[] = []
-      for (let i = 1; i <= 8; i++) {
-        fallbackScreenshots.push(`https://cdn.akamai.steamstatic.com/steam/apps/${appId}/ss_${i}.jpg`)
-      }
-      setScreenshots(prev => {
-        const unique = new Set([...prev, ...fallbackScreenshots])
-        return Array.from(unique)
-      })
+      console.error('Failed to fetch media:', err)
+      setCoverImage(`https://cdn.akamai.steamstatic.com/steam/apps/${appId}/library_600x900.jpg`)
     }
   }
 
@@ -291,36 +285,34 @@ Return ONLY the raw JSON object. No markdown, no code blocks, no explanation.`
     if (aiPreview.minimum_requirements) setMinAbout(aiPreview.minimum_requirements)
     if (aiPreview.recommended_requirements) setRecAbout(aiPreview.recommended_requirements)
 
-    // Fetch real images from Steam if steam_app_id is provided
+    // Fetch real images from SteamGridDB (primary) then fallback to Steam CDN
     let steamCover = ''
     let steamScreenshots: string[] = []
 
-    if (aiPreview.steam_app_id) {
-      const appId = aiPreview.steam_app_id
-      // Use vertical cover image (portrait format used in game stores)
-      steamCover = `https://cdn.akamai.steamstatic.com/steam/apps/${appId}/library_600x900.jpg`
+    const gameName = aiPreview.title || aiQuery.trim()
+    const steamAppId = aiPreview.steam_app_id ? Number(aiPreview.steam_app_id) : undefined
+
+    try {
+      const sgdbImages = await fetchSteamGridDbImages(gameName, steamAppId)
+      if (sgdbImages.cover) steamCover = sgdbImages.cover
+      if (sgdbImages.screenshots.length > 0) steamScreenshots = sgdbImages.screenshots
+    } catch (err) {
+      console.error('SteamGridDB fetch error:', err)
+    }
+
+    if (!steamCover && steamAppId) {
+      steamCover = `https://cdn.akamai.steamstatic.com/steam/apps/${steamAppId}/library_600x900.jpg`
+    }
+    if (steamScreenshots.length === 0 && steamAppId) {
       try {
-        // Fetch screenshots from Steam Store API via CORS proxy
-        const steamUrl = `https://store.steampowered.com/api/appdetails?appids=${appId}&filters=screenshots`
-        const res = await fetch(`https://corsproxy.io/?${encodeURIComponent(steamUrl)}`)
+        const steamUrl = `https://store.steampowered.com/api/appdetails?appids=${steamAppId}&filters=screenshots`
+        const res = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(steamUrl)}`)
         const steamData = await res.json()
-        const appData = steamData[appId]?.data
-        if (appData?.screenshots && appData.screenshots.length > 0) {
-          steamScreenshots = appData.screenshots.slice(0, 10).map((s: any) => s.path_full)
+        const appData = steamData[steamAppId]?.data
+        if (appData?.screenshots?.length > 0) {
+          steamScreenshots = appData.screenshots.slice(0, 8).map((s: any) => s.path_full)
         }
-        // Fallback: if no proxy screenshots, try Steam CDN direct pattern
-        if (steamScreenshots.length === 0) {
-          for (let i = 1; i <= 8; i++) {
-            steamScreenshots.push(`https://cdn.akamai.steamstatic.com/steam/apps/${appId}/ss_${i}.jpg`)
-          }
-        }
-      } catch (err) {
-        console.error('Failed to fetch Steam screenshots:', err)
-        // Still try direct CDN pattern as last resort
-        for (let i = 1; i <= 8; i++) {
-          steamScreenshots.push(`https://cdn.akamai.steamstatic.com/steam/apps/${appId}/ss_${i}.jpg`)
-        }
-      }
+      } catch { /* silent */ }
     }
 
     if (steamCover) {
@@ -609,7 +601,7 @@ Return ONLY the raw JSON object. No markdown, no code blocks, no explanation.`
                 alt="cover"
                 onLoad={() => setCoverImgError(false)}
                 onError={() => {
-                  const proxy = `https://corsproxy.io/?${encodeURIComponent(coverImage)}`
+                  const proxy = `https://api.allorigins.win/raw?url=${encodeURIComponent(coverImage)}`
                   if (coverImgSrc !== proxy) {
                     setCoverImgSrc(proxy)
                   } else {
