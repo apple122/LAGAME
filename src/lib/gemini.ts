@@ -9,6 +9,7 @@ export interface GeminiKey {
   model: string
   cooldown_until: string | null
   created_at: string
+  category?: string
 }
 
 /**

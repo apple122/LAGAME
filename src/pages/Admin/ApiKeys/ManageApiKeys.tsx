@@ -37,7 +37,7 @@ const MonoKey = styled.div`
 `
 
 const AddFormGrid = styled.div`
-  display: grid; grid-template-columns: 1fr 2fr 1fr; gap: 16px;
+  display: grid; grid-template-columns: 1fr 1.5fr 2fr 1fr; gap: 16px;
   @media (max-width: 700px) { grid-template-columns: 1fr; }
 `
 
@@ -49,6 +49,7 @@ export default function ManageApiKeys() {
   const [showForm, setShowForm] = useState(false)
   const [formName, setFormName] = useState('')
   const [formKey, setFormKey] = useState('')
+  const [formCategory, setFormCategory] = useState('gemini')
   const [formModel, setFormModel] = useState('gemini-flash-latest')
   const [showKey, setShowKey] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -67,7 +68,7 @@ export default function ManageApiKeys() {
     if (!formName.trim() || !formKey.trim()) return
     setSaving(true)
     const { error } = await (supabase as any).from('gemini_api_keys').insert({
-      name: formName, api_key: formKey, model: formModel
+      name: formName, api_key: formKey, model: formModel, category: formCategory
     })
     setSaving(false)
     if (!error) {
@@ -136,6 +137,14 @@ export default function ManageApiKeys() {
           </CardHeader>
           <AddFormGrid>
             <Field>
+              <Label>Category</Label>
+              <Select value={formCategory} onChange={e => setFormCategory(e.target.value)}>
+                <option value="gemini">Gemini Agent</option>
+                <option value="steamgriddb">SteamGridDB</option>
+                <option value="other">Other</option>
+              </Select>
+            </Field>
+            <Field>
               <Label>Name / Identifier</Label>
               <Input placeholder="e.g. Account A" value={formName} onChange={e => setFormName(e.target.value)} />
             </Field>
@@ -193,7 +202,7 @@ export default function ManageApiKeys() {
         ) : (
           <div>
             <KeyRowHead>
-              <div>Name & Model</div>
+              <div>Name & Category</div>
               <HideMobile><div>API Key</div></HideMobile>
               <HideMobile><div>Status</div></HideMobile>
               <HideMobile><div>Cooldown</div></HideMobile>
@@ -205,7 +214,10 @@ export default function ManageApiKeys() {
                 <KeyRow key={key.id}>
                   <div>
                     <div style={{ fontWeight: 600, color: '#e2e8f0', fontSize: 14 }}>{key.name}</div>
-                    <div style={{ fontSize: 12, color: 'rgba(148,163,184,0.4)', marginTop: 3 }}>{key.model}</div>
+                    <div style={{ fontSize: 12, color: 'rgba(148,163,184,0.4)', marginTop: 3 }}>
+                      {key.category === 'steamgriddb' ? 'SteamGridDB' : key.category === 'other' ? 'Other' : 'Gemini Agent'}
+                      {key.model && key.category === 'gemini' ? ` • ${key.model}` : ''}
+                    </div>
                   </div>
                   <HideMobile>
                     <MonoKey>
