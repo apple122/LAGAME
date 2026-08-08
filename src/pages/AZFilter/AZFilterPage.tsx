@@ -44,7 +44,7 @@ const SearchInput = styled.input`
 `
 const SearchIcon = styled.div`position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: rgba(148,163,184,0.5); pointer-events: none;`
 
-const Grid = styled.div`display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 18px;`
+const Grid = styled.div`display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 18px;`
 
 const Empty = styled.div`text-align: center; padding: 80px; color: rgba(148,163,184,0.4);`
 
@@ -131,34 +131,34 @@ export default function AZFilterPage() {
         </PageHeader>
 
         <SearchBar>
-        <SearchIcon><Search size={16} /></SearchIcon>
-        <SearchInput
-          placeholder={t('az.search_placeholder')}
-          value={localQ}
-          onChange={e => handleSearch(e.target.value)}
-        />
-      </SearchBar>
+          <SearchIcon><Search size={16} /></SearchIcon>
+          <SearchInput
+            placeholder={t('az.search_placeholder')}
+            value={localQ}
+            onChange={e => handleSearch(e.target.value)}
+          />
+        </SearchBar>
 
-      <LetterStrip>
-        <LetterBtn $active={activeLetter === 'All' && !searchQ} onClick={() => { setLocalQ(''); setParams({}) }}>{t('az.all')}</LetterBtn>
-        {AZ_LETTERS.map(l => (
-          <LetterBtn key={l} $active={activeLetter === l && !searchQ} onClick={() => handleLetterClick(l)}>{l}</LetterBtn>
-        ))}
-      </LetterStrip>
+        <LetterStrip>
+          <LetterBtn $active={activeLetter === 'All' && !searchQ} onClick={() => { setLocalQ(''); setParams({}) }}>{t('az.all')}</LetterBtn>
+          {AZ_LETTERS.map(l => (
+            <LetterBtn key={l} $active={activeLetter === l && !searchQ} onClick={() => handleLetterClick(l)}>{l}</LetterBtn>
+          ))}
+        </LetterStrip>
 
-      <p style={{ fontSize: 13, color: 'rgba(148,163,184,0.5)', marginBottom: 20 }}>
-        {searchQ ? t('az.search_results_for').replace('{q}', searchQ) : activeLetter === 'All' ? t('az.all_games_label') : t('az.games_starting_with').replace('{letter}', activeLetter)}
-        {' · '}{games.length} {t('az.found')}
-      </p>
+        <p style={{ fontSize: 13, color: 'rgba(148,163,184,0.5)', marginBottom: 20 }}>
+          {searchQ ? t('az.search_results_for').replace('{q}', searchQ) : activeLetter === 'All' ? t('az.all_games_label') : t('az.games_starting_with').replace('{letter}', activeLetter)}
+          {' · '}{games.length} {t('az.found')}
+        </p>
 
-      {loading ? (
-        <Loading><Loader2 size={18} style={{ animation: 'spin 0.8s linear infinite' }} /> {t('az.loading')}</Loading>
-      ) : games.length === 0 ? (
-        <Empty><div style={{ fontSize: 48, marginBottom: 12 }}>🔍</div><p>{t('az.no_games_found')}</p></Empty>
-      ) : (
-        <Grid>{games.map((g, i) => <GameCard key={g.id} game={g as any} index={i} />)}</Grid>
-      )}
-    </Page>
+        {loading ? (
+          <Loading><Loader2 size={18} style={{ animation: 'spin 0.8s linear infinite' }} /> {t('az.loading')}</Loading>
+        ) : games.length === 0 ? (
+          <Empty><div style={{ fontSize: 48, marginBottom: 12 }}>🔍</div><p>{t('az.no_games_found')}</p></Empty>
+        ) : (
+          <Grid>{games.map((g, i) => <GameCard key={g.id} game={g as any} index={i} />)}</Grid>
+        )}
+      </Page>
     </>
   )
 }

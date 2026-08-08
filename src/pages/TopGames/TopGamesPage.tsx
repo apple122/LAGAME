@@ -21,7 +21,7 @@ const BannerTitle = styled.h1`
   font-weight: 900; color: #fff; margin-bottom: 10px;
 `
 
-const Grid = styled.div`display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 20px;`
+const Grid = styled.div`display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px;`
 
 const TopLabel = styled.div<{ $rank: number }>`
   position: absolute; top: 10px; left: 10px; z-index: 10;

@@ -21,6 +21,42 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://example.com/game/gta-san-andreas-classic-modded-edition-v2-p2p-free-online-steam-games-for-pc</loc>
+    <lastmod>2026-08-08T18:48:53.720Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://example.com/game/monster-hunter-world</loc>
+    <lastmod>2026-08-08T18:32:48.676Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://example.com/game/monster-hunter-world-iceborne</loc>
+    <lastmod>2026-08-08T18:30:07.527Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://example.com/game/monster-hunter-stories-2-wings-of-ruin</loc>
+    <lastmod>2026-08-08T18:27:38.313Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://example.com/game/monster-hunter-stories</loc>
+    <lastmod>2026-08-08T18:26:15.203Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://example.com/game/monster-hunter-wilds</loc>
+    <lastmod>2026-08-08T18:21:47.777Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
     <loc>https://example.com/game/monster-hunter-stories-3-twisted-reflection</loc>
     <lastmod>2026-08-08T14:33:59.273Z</lastmod>
     <changefreq>weekly</changefreq>
@@ -281,12 +317,6 @@
   <url>
     <loc>https://example.com/game/hollow-knight-silksong</loc>
     <lastmod>2026-08-04T08:43:45.028Z</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://example.com/game/gta-san-andreas-classic-modded-edition-v2-p2p-free-online-steam-games-for-pc</loc>
-    <lastmod>2026-08-04T08:30:15.210Z</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>

@@ -165,6 +165,7 @@ export default function GameCard({ game }: Props) {
       </CoverWrap>
 
       <BodySpacer />
+
       <Body>
         <Title title={game.title}>{game.title}</Title>
         <Meta>
