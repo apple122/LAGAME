@@ -166,6 +166,28 @@ const LoadingPage = styled.div`
   min-height: 60vh; color: rgba(148,163,184,0.6); gap: 12px; font-size: 14px;
 `
 
+const ComingSoonBadge = styled.div`
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+  padding: 28px 24px;
+  background: linear-gradient(135deg, rgba(124,58,237,0.12), rgba(251,191,36,0.08));
+  border: 1px solid rgba(251,191,36,0.3);
+  border-radius: 16px;
+  margin-bottom: 8px;
+`
+const ComingSoonTitle = styled.div`
+  font-size: 22px; font-weight: 900; letter-spacing: 2px;
+  text-transform: uppercase;
+  background: linear-gradient(135deg, #fbbf24, #f59e0b, #fbbf24);
+  background-size: 200% auto;
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmer 2.5s linear infinite;
+  @keyframes shimmer { 0% { background-position: 0% center; } 100% { background-position: 200% center; } }
+`
+const ComingSoonSub = styled.div`
+  font-size: 13px; color: rgba(148,163,184,0.6); text-align: center; line-height: 1.6;
+`
+
 export default function GameDetailPage() {
   const { slug } = useParams()
   const navigate = useNavigate()
@@ -290,6 +312,19 @@ export default function GameDetailPage() {
             </div>
           )}
           <Title>{game.title}</Title>
+          {(game as any).is_coming_soon && (
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: 8,
+              background: 'linear-gradient(135deg, rgba(251,191,36,0.15), rgba(245,158,11,0.1))',
+              border: '1px solid rgba(251,191,36,0.4)',
+              borderRadius: 8, padding: '6px 14px', marginBottom: 14,
+              fontSize: 13, fontWeight: 700, color: '#fbbf24',
+              letterSpacing: '0.5px', textTransform: 'uppercase',
+              boxShadow: '0 0 20px rgba(251,191,36,0.15)'
+            }}>
+              🚀 Coming Soon
+            </div>
+          )}
           {(game as any).file_size && (
             <div style={{
               display: 'inline-flex', alignItems: 'center', gap: 6,
@@ -304,7 +339,16 @@ export default function GameDetailPage() {
 
           {/* Download Links */}
           <SectionTitle><Download size={15} /> {t('game.download_links')}</SectionTitle>
-          {links.length === 0 ? (
+          {(game as any).is_coming_soon ? (
+            <ComingSoonBadge>
+              <div style={{ fontSize: 36 }}>🚀</div>
+              <ComingSoonTitle>Coming Soon</ComingSoonTitle>
+              <ComingSoonSub>
+                เกมนี้กำลังจะเปิดให้ดาวน์โหลดเร็วๆ นี้<br />
+                โปรดติดตามและรอได้เลย!
+              </ComingSoonSub>
+            </ComingSoonBadge>
+          ) : links.length === 0 ? (
             <p style={{ fontSize: 13, color: 'rgba(148,163,184,0.5)' }}>{t('game.no_download')}</p>
           ) : (
             (() => {

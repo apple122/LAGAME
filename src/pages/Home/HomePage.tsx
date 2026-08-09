@@ -521,6 +521,7 @@ export default function HomePage() {
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
   const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>({})
+  const [comingSoonCount, setComingSoonCount] = useState(0)
   const [allGamesCount, setAllGamesCount] = useState(0)
   const [uptime, setUptime] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 })
 
@@ -613,16 +614,18 @@ export default function HomePage() {
     const loadCategoriesAndCounts = async () => {
       const [catsRes, gamesRes] = await Promise.all([
         supabase.from('categories').select('*').order('name'),
-        supabase.from('games').select('category_id, category_ids')
+        supabase.from('games').select('category_id, category_ids, is_coming_soon')
       ])
 
       setCategories(catsRes.data || [])
 
       const counts: Record<string, number> = {}
+      let comingSoon = 0
       const allGames = (gamesRes.data as any[]) || []
       setAllGamesCount(allGames.length)
 
       allGames.forEach(g => {
+        if (g.is_coming_soon) comingSoon++
         const catIds = new Set<string>()
         if (g.category_id) catIds.add(g.category_id)
         if (g.category_ids) g.category_ids.forEach((id: string) => catIds.add(id))
@@ -632,6 +635,7 @@ export default function HomePage() {
         })
       })
 
+      setComingSoonCount(comingSoon)
       setCategoryCounts(counts)
     }
     loadCategoriesAndCounts()
@@ -653,7 +657,11 @@ export default function HomePage() {
       .order(orderCol, { ascending: orderDir as boolean })
       .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1)
 
-    if (selectedCat) q = q.or(`category_id.eq.${selectedCat},category_ids.cs.{${selectedCat}}`)
+    if (selectedCat === 'coming_soon') {
+      q = q.eq('is_coming_soon', true)
+    } else if (selectedCat) {
+      q = q.or(`category_id.eq.${selectedCat},category_ids.cs.{${selectedCat}}`)
+    }
 
     if (selectedPlatform !== 'all') {
       q = q.contains('system_requirements', { platforms: [selectedPlatform] })
@@ -721,6 +729,12 @@ export default function HomePage() {
               {t('home.all_games')}
               <span style={{ fontSize: 11, background: selectedCat === null ? 'rgba(255,255,255,0.2)' : 'rgba(124,58,237,0.2)', padding: '2px 6px', borderRadius: 6, minWidth: 20, textAlign: 'center' }}>
                 {allGamesCount}
+              </span>
+            </CatBtn>
+            <CatBtn $active={selectedCat === 'coming_soon'} onClick={() => { setSelectedCat('coming_soon'); setPage(1) }}>
+              🚀 Coming Soon
+              <span style={{ fontSize: 11, background: selectedCat === 'coming_soon' ? 'rgba(255,255,255,0.2)' : 'rgba(124,58,237,0.2)', padding: '2px 6px', borderRadius: 6, minWidth: 20, textAlign: 'center' }}>
+                {comingSoonCount}
               </span>
             </CatBtn>
             {categories.map(cat => (
@@ -844,6 +858,12 @@ export default function HomePage() {
                 All Games
                 <span style={{ fontSize: 11, background: tmpCat === null ? 'rgba(124,58,237,0.4)' : 'rgba(124,58,237,0.2)', padding: '2px 7px', borderRadius: 6 }}>
                   {allGamesCount}
+                </span>
+              </MobileCatBtn>
+              <MobileCatBtn $active={tmpCat === 'coming_soon'} onClick={() => setTmpCat('coming_soon')}>
+                🚀 Coming Soon
+                <span style={{ fontSize: 11, background: tmpCat === 'coming_soon' ? 'rgba(124,58,237,0.4)' : 'rgba(124,58,237,0.2)', padding: '2px 7px', borderRadius: 6 }}>
+                  {comingSoonCount}
                 </span>
               </MobileCatBtn>
               {categories.map(cat => (

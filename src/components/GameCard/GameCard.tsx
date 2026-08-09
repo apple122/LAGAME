@@ -169,7 +169,7 @@ export default function GameCard({ game }: Props) {
       <Body>
         <Title title={game.title}>{game.title}</Title>
         <Meta>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ display: (game.is_coming_soon ? 'none' : 'flex'), alignItems: 'center', gap: 8 }}>
             <CategoryBadge>{translateCategoryName(game.category?.name || 'Game')}</CategoryBadge>
             {game.system_requirements?.platforms && game.system_requirements.platforms.length > 0 && (
               <div style={{ display: 'flex', gap: 8, color: 'rgba(148,163,184,0.7)', fontSize: 11, fontWeight: 600 }}>
@@ -185,10 +185,16 @@ export default function GameCard({ game }: Props) {
                 ? `${((game.view_count ?? 0) / 1000).toFixed(1)}k`
                 : (game.view_count ?? 0)}
             </ViewCountBadge>
-            <DownloadCount>
-              <Download size={11} />
-              {game.download_links?.length ?? 0} links
-            </DownloadCount>
+            {(game as any).is_coming_soon ? (
+              <DownloadCount style={{ color: '#fbbf24', fontWeight: 600 }}>
+                🚀 Coming Soon
+              </DownloadCount>
+            ) : (
+              <DownloadCount>
+                <Download size={11} />
+                {game.download_links?.length ?? 0} links
+              </DownloadCount>
+            )}
           </div>
         </Meta>
       </Body>

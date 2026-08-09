@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import styled, { keyframes } from 'styled-components'
 import { Sparkles, Plus, Minus, Save, ArrowLeft, Loader2, CheckCircle, AlertCircle, X, Image, Bot, Wand2, Gamepad2 } from 'lucide-react'
+import ScreenshotSorter from '../../../components/ScreenshotSorter/ScreenshotSorter'
 import { supabase } from '../../../lib/supabase'
 import type { Category } from '../../../lib/supabase'
 import MultiSelectCategory from '../../../components/MultiSelectCategory'
@@ -52,19 +53,6 @@ const UploadBtn = styled.label`
   @media (max-width: 480px) { padding: 10px 12px; font-size: 12px; }
 `
 
-const ScreenshotList = styled.div`display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px;`
-const ScreenshotThumb = styled.div<{ $dragging?: boolean }>`
-  position: relative;
-  cursor: grab;
-  opacity: ${p => p.$dragging ? 0.4 : 1};
-  transition: opacity 0.2s;
-  &:active { cursor: grabbing; }
-`
-const RemoveBtn = styled.button`
-  position: absolute; top: -6px; right: -6px; width: 18px; height: 18px;
-  background: #ef4444; border: none; border-radius: 50%; color: #fff;
-  display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 10px;
-`
 
 const LinkRow = styled.div`
   display: flex; gap: 8px; margin-bottom: 8px; align-items: center;
@@ -146,6 +134,7 @@ export default function AddGame() {
   const [newScreenshot, setNewScreenshot] = useState('')
   const [categoryIds, setCategoryIds] = useState<string[]>([])
   const [isFeatured, setIsFeatured] = useState(false)
+  const [isComingSoon, setIsComingSoon] = useState(false)
   // System requirements
   const [platforms, setPlatforms] = useState<string[]>(['windows'])
   const [minAbout, setMinAbout] = useState('')
@@ -159,7 +148,6 @@ export default function AddGame() {
   // Upload state  — files are staged locally, uploaded only on Save
   const [pendingCoverFile, setPendingCoverFile] = useState<File | null>(null)
   const [pendingScreenshotFiles, setPendingScreenshotFiles] = useState<Map<string, File>>(new Map())
-  const [dragIndex, setDragIndex] = useState<number | null>(null)
   const [coverImgError, setCoverImgError] = useState(false)
   const [coverImgSrc, setCoverImgSrc] = useState('')
 
@@ -306,7 +294,7 @@ Return ONLY the raw JSON object. No markdown, no code blocks, no explanation.`
       const match = input.match(/\/app\/(\d+)/)
       if (match) appId = match[1]
     }
-    
+
     if (!appId) {
       alert('ไม่พบ App ID กรุณาตรวจสอบ URL หรือ ID อีกครั้ง')
       return
@@ -425,6 +413,7 @@ Return ONLY the raw JSON object. No markdown, no code blocks, no explanation.`
         category_id: categoryIds[0] || null,
         category_ids: categoryIds.length > 0 ? categoryIds : null,
         is_featured: isFeatured,
+        is_coming_soon: isComingSoon,
         system_requirements: {
           platforms,
           minimum: { about: minAbout },
@@ -568,6 +557,12 @@ Return ONLY the raw JSON object. No markdown, no code blocks, no explanation.`
             Featured Game
           </Label>
         </Field>
+        <Field>
+          <Label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <input type="checkbox" checked={isComingSoon} onChange={e => setIsComingSoon(e.target.checked)} />
+            <span>🚀 Coming Soon <span style={{ fontSize: 11, color: 'rgba(148,163,184,0.5)', fontWeight: 400 }}>(ซ่อนปุ่มดาวน์โหลด, แสดง Coming Soon badge)</span></span>
+          </Label>
+        </Field>
 
         {/* ── Media (Cover, Screenshots & Video) ────── */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
@@ -644,29 +639,7 @@ Return ONLY the raw JSON object. No markdown, no code blocks, no explanation.`
             </UploadBtn>
           </FetchRow>
           {screenshots.length > 0 && (
-            <ScreenshotList>
-              {screenshots.map((s, i) => (
-                <ScreenshotThumb
-                  key={i}
-                  $dragging={dragIndex === i}
-                  draggable
-                  onDragStart={() => setDragIndex(i)}
-                  onDragOver={e => { e.preventDefault() }}
-                  onDrop={() => {
-                    if (dragIndex === null || dragIndex === i) return
-                    const next = [...screenshots]
-                    const [moved] = next.splice(dragIndex, 1)
-                    next.splice(i, 0, moved)
-                    setScreenshots(next)
-                    setDragIndex(null)
-                  }}
-                  onDragEnd={() => setDragIndex(null)}
-                >
-                  <img src={s} alt={`ss${i}`} style={{ width: 80, height: 52, objectFit: 'cover', borderRadius: 6, border: '1px solid rgba(124,58,237,0.2)' }} onError={e => (e.currentTarget.style.opacity = '0.3')} />
-                  <RemoveBtn onClick={() => setScreenshots(ss => ss.filter((_, idx) => idx !== i))}><X size={9} /></RemoveBtn>
-                </ScreenshotThumb>
-              ))}
-            </ScreenshotList>
+            <ScreenshotSorter screenshots={screenshots} onChange={setScreenshots} />
           )}
         </Field>
 
@@ -710,12 +683,12 @@ Return ONLY the raw JSON object. No markdown, no code blocks, no explanation.`
               <option value="windows">Windows</option>
               <option value="macos">macOS</option>
             </Select>
-            <Input 
+            <Input
               list="cloud-options"
-              value={link.cloud_name} 
-              onChange={e => updateLink(i, 'cloud_name', e.target.value)} 
+              value={link.cloud_name}
+              onChange={e => updateLink(i, 'cloud_name', e.target.value)}
               placeholder="Select or type..."
-              style={{ width: 150, padding: '9px 12px' }} 
+              style={{ width: 150, padding: '9px 12px' }}
             />
             <Input placeholder="https://..." value={link.url} onChange={e => updateLink(i, 'url', e.target.value)} />
             {links.length > 1 && (

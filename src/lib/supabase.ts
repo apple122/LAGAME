@@ -39,6 +39,7 @@ export type Game = {
   category_id: string | null
   category_ids: string[] | null
   is_featured: boolean
+  is_coming_soon?: boolean
   view_count: number
   file_size: string | null
   video_url: string | null
