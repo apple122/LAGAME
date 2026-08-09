@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import styled, { keyframes, css } from 'styled-components'
-import { MessageSquare, Send, RefreshCw, Trash2, Clock, Paperclip, File } from 'lucide-react'
+import { MessageSquare, Send, RefreshCw, Trash2, Clock, Paperclip, File, Mic, Square, X } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 
 // ── Types ─────────────────────────────────────────────────────────
@@ -33,6 +33,11 @@ function isActive(lastSeen: string) {
 }
 function fmtTime(dateStr: string) {
   return new Date(dateStr).toLocaleString('th-TH', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
+function formatTime(s: number) {
+  const m = Math.floor(s / 60)
+  const secs = s % 60
+  return `${m}:${secs.toString().padStart(2, '0')}`
 }
 
 // ── Animations ────────────────────────────────────────────────────
@@ -142,7 +147,25 @@ const AttachBtn = styled.button`
   &:hover { background: rgba(124,58,237,0.1); color: #c4b5fd; border-color: rgba(124,58,237,0.4); }
   &:disabled { opacity: 0.5; cursor: not-allowed; }
 `
-const AttachmentImage = styled.img`max-width: 100%; max-height: 250px; object-fit: contain; border-radius: 8px; margin-top: 6px; cursor: pointer; background: rgba(0,0,0,0.2);`
+const AttachmentImage = styled.img`max-width: 100%; border-radius: 8px; margin-top: 6px; cursor: zoom-in;`
+const LightboxOverlay = styled.div`
+  position: fixed; inset: 0; z-index: 9999;
+  background: rgba(0,0,0,0.85); backdrop-filter: blur(8px);
+  display: flex; align-items: center; justify-content: center;
+  animation: ${fadeIn} 0.18s ease; cursor: zoom-out;
+`
+const LightboxImg = styled.img`
+  max-width: 90vw; max-height: 90vh; border-radius: 12px;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.8); cursor: default; object-fit: contain;
+`
+const LightboxClose = styled.button`
+  position: fixed; top: 20px; right: 24px;
+  background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+  color: #fff; border-radius: 50%; width: 40px; height: 40px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; font-size: 20px; backdrop-filter: blur(8px);
+  &:hover { background: rgba(255,255,255,0.2); }
+`
 const AttachmentFile = styled.a`
   display: flex; align-items: center; gap: 8px; padding: 10px 12px; margin-top: 6px;
   background: rgba(0,0,0,0.2); border-radius: 8px; color: #e2e8f0; text-decoration: none; font-size: 12px;
@@ -193,6 +216,31 @@ const SaveBtn = styled.button`
   color:#fff; font-size:12px; font-weight:700; cursor:pointer; white-space:nowrap;
   &:hover { opacity:0.9; }
 `
+const PreviewWrap = styled.div`
+  position: relative; width: 60px; height: 60px; border-radius: 8px; overflow: hidden; border: 1px solid rgba(124,58,237,0.4);
+`
+const PreviewImg = styled.img`width: 100%; height: 100%; object-fit: cover;`
+const RemovePreviewBtn = styled.button`
+  position: absolute; top: -4px; right: -4px; background: #ef4444; border: none; border-radius: 50%;
+  width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; color: white;
+  cursor: pointer; font-size: 12px; z-index: 10;
+`
+const VoiceIndicator = styled.div`
+  flex: 1; padding: 10px 14px; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3);
+  border-radius: 12px; color: #fca5a5; font-size: 13.5px; display: flex; align-items: center; gap: 8px;
+  animation: ${pulse} 2s infinite;
+`
+const MentionMenu = styled.ul`
+  position: absolute; bottom: 100%; left: 0; right: 0; max-height: 200px;
+  background: #1e1e24; border: 1px solid rgba(124,58,237,0.3); border-radius: 12px;
+  margin: 0 14px 8px; padding: 4px; overflow-y: auto; list-style: none;
+  box-shadow: 0 -4px 12px rgba(0,0,0,0.4); z-index: 10;
+`
+const MentionItem = styled.li<{ $active?: boolean }>`
+  padding: 8px 12px; font-size: 13px; color: #e2e8f0; cursor: pointer; border-radius: 8px;
+  background: ${p => p.$active ? 'rgba(124,58,237,0.2)' : 'transparent'};
+  &:hover { background: rgba(124,58,237,0.2); }
+`
 
 // ══════════════════════════════════════════════════════════════════
 export default function AdminSupport() {
@@ -205,9 +253,22 @@ export default function AdminSupport() {
   const [notifyEmail, setNotifyEmail] = useState('peun955@gmail.com')
   const [notifyEnabled, setNotifyEnabled] = useState(true)
   const [savingEmail, setSavingEmail] = useState(false)
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const realtimeRef = useRef<any>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const [games, setGames] = useState<{ id: string, name: string }[]>([])
+  const [showMention, setShowMention] = useState(false)
+  const [mentionFilter, setMentionFilter] = useState('')
+  const [mentionIndex, setMentionIndex] = useState(0)
+
+  const [attachments, setAttachments] = useState<{ id: string, file?: File, blob?: Blob, url: string, type: 'image' | 'audio' | 'file', name?: string }[]>([])
+  const [isRecording, setIsRecording] = useState(false)
+  const [recordingTime, setRecordingTime] = useState(0)
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const audioChunksRef = useRef<Blob[]>([])
+  const timerRef = useRef<number | null>(null)
 
   // ── Fetch sessions ───────────────────────────────────────────────
   const fetchSessions = async () => {
@@ -224,7 +285,12 @@ export default function AdminSupport() {
     if (data) { setNotifyEmail(data.notify_email); setNotifyEnabled(data.notify_enabled) }
   }
 
-  useEffect(() => { fetchSessions(); fetchNotifySettings() }, [])
+  const fetchGames = async () => {
+    const { data } = await supabase.from('games').select('id, name')
+    if (data) setGames(data)
+  }
+
+  useEffect(() => { fetchSessions(); fetchNotifySettings(); fetchGames() }, [])
 
   // ── Subscribe to new sessions ────────────────────────────────────
   useEffect(() => {
@@ -267,61 +333,186 @@ export default function AdminSupport() {
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
 
   // ── Send reply ───────────────────────────────────────────────────
-  const sendReply = async () => {
-    if (!selected || !replyInput.trim() || sending) return
-    const content = replyInput.trim()
-    setReplyInput(''); setSending(true)
-
-    const { data: msg } = await (supabase as any)
-      .from('support_messages').insert({ session_id: selected.id, role: 'admin', content }).select('*').single()
-    if (msg) setMessages(prev => [...prev, msg])
-
-    // Update session
-    await (supabase as any).from('support_sessions').update({
-      last_seen: new Date().toISOString(),
-      is_read_by_admin: true,
-      message_count: (selected.message_count || 0) + 1
-    }).eq('id', selected.id)
-    fetchSessions()
-    setSending(false)
+  const removeAttachment = (id: string) => {
+    setAttachments(prev => {
+      const att = prev.find(a => a.id === id)
+      if (att) URL.revokeObjectURL(att.url)
+      return prev.filter(a => a.id !== id)
+    })
   }
 
-  // ── Upload file ──────────────────────────────────────────────────
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file || !selected) return
+  const toggleRecording = async () => {
+    if (isRecording) {
+      if (mediaRecorderRef.current) mediaRecorderRef.current.stop()
+      setIsRecording(false)
+      if (timerRef.current) clearInterval(timerRef.current)
+    } else {
+      if (attachments.length >= 6) { alert('แนบได้สูงสุด 6 ไฟล์'); return }
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+        mediaRecorderRef.current = new MediaRecorder(stream)
+        audioChunksRef.current = []
+        setRecordingTime(0)
+        
+        mediaRecorderRef.current.ondataavailable = (e) => {
+          if (e.data.size > 0) audioChunksRef.current.push(e.data)
+        }
+        mediaRecorderRef.current.onstop = () => {
+          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
+          const url = URL.createObjectURL(audioBlob)
+          setAttachments(prev => [...prev, {
+            id: Math.random().toString(36).slice(2, 11),
+            blob: audioBlob,
+            url,
+            type: 'audio'
+          }])
+          stream.getTracks().forEach(track => track.stop())
+        }
+        
+        mediaRecorderRef.current.start()
+        setIsRecording(true)
+        timerRef.current = window.setInterval(() => setRecordingTime(prev => prev + 1), 1000)
+      } catch (e) {
+        alert('ไม่สามารถเข้าถึงไมโครโฟนได้')
+      }
+    }
+  }
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files) return
+    const filesArray = Array.from(e.target.files)
     if (fileInputRef.current) fileInputRef.current.value = ''
+    if (attachments.length >= 6) { alert('แนบได้สูงสุด 6 ไฟล์'); return }
+    
+    filesArray.slice(0, 6 - attachments.length).forEach(file => {
+      if (file.size > 5 * 1024 * 1024) { alert('ไฟล์มีขนาดเกิน 5MB'); return }
+      const url = URL.createObjectURL(file)
+      setAttachments(prev => [...prev, {
+        id: Math.random().toString(36).slice(2, 11),
+        file,
+        url,
+        type: file.type.startsWith('image/') ? 'image' : 'file',
+        name: file.name
+      }])
+    })
+  }
 
-    // Check size 2MB
-    if (file.size > 2 * 1024 * 1024) { alert('ไฟล์มีขนาดเกิน 2MB'); return }
+  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    if (attachments.length >= 6) return
+    const items = e.clipboardData?.items
+    if (!items) return
+    for (const item of items) {
+      if (item.type.startsWith('image/')) {
+        const file = item.getAsFile()
+        if (file) {
+          const url = URL.createObjectURL(file)
+          setAttachments(prev => [...prev, {
+            id: Math.random().toString(36).slice(2, 11),
+            file,
+            url,
+            type: 'image',
+            name: file.name
+          }])
+        }
+        break
+      }
+    }
+  }
 
+  // Mention logic
+  const filteredGames = games.filter(g => g.name.toLowerCase().includes(mentionFilter.toLowerCase()))
+  
+  const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value
+    setReplyInput(val)
+    
+    const lastAtPos = val.lastIndexOf('@')
+    if (lastAtPos !== -1) {
+      const textAfterAt = val.substring(lastAtPos + 1)
+      if (!textAfterAt.includes(' ')) {
+        setShowMention(true)
+        setMentionFilter(textAfterAt)
+        setMentionIndex(0)
+        return
+      }
+    }
+    setShowMention(false)
+  }
+
+  const insertMention = (game: { id: string, name: string }) => {
+    const lastAtPos = replyInput.lastIndexOf('@')
+    if (lastAtPos !== -1) {
+      const newVal = replyInput.substring(0, lastAtPos) + game.name + ' '
+      setReplyInput(newVal)
+    }
+    setShowMention(false)
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (showMention) {
+      if (e.key === 'ArrowDown') { e.preventDefault(); setMentionIndex(p => Math.min(p + 1, filteredGames.length - 1)) }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); setMentionIndex(p => Math.max(p - 1, 0)) }
+      else if (e.key === 'Enter') { e.preventDefault(); insertMention(filteredGames[mentionIndex]) }
+      else if (e.key === 'Escape') { setShowMention(false) }
+      return
+    }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendReply() }
+  }
+
+  const sendReply = async () => {
+    const content = replyInput.trim()
+    if (!selected || (!content && attachments.length === 0) || sending) return
+    setReplyInput('')
     setSending(true)
-    const fileExt = file.name.split('.').pop()
-    const fileName = `${selected.id}/${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`
 
-    const { error } = await supabase.storage.from('chat_attachments').upload(fileName, file)
-    if (error) { alert('อัปโหลดไฟล์ไม่สำเร็จ'); setSending(false); return }
+    // Send text
+    if (content) {
+      const { data: msg } = await (supabase as any)
+        .from('support_messages').insert({ session_id: selected.id, role: 'admin', content }).select('*').single()
+      if (msg) setMessages(prev => [...prev, msg])
+    }
 
-    const { data: urlData } = supabase.storage.from('chat_attachments').getPublicUrl(fileName)
-    const type = file.type.startsWith('image/') ? 'image' : 'file'
+    // Upload attachments
+    for (const att of attachments) {
+      let uploadFile: Blob | null = att.file ?? null
+      if (!uploadFile && att.blob) {
+        uploadFile = att.blob
+      }
+      if (!uploadFile) continue
+      const uploadName = att.file?.name ?? `voice_${Date.now()}.webm`
 
-    const { data: msg } = await (supabase as any)
-      .from('support_messages').insert({
-        session_id: selected.id,
-        role: 'admin',
-        content: `แนบไฟล์: ${file.name}`,
-        attachment_url: urlData.publicUrl,
-        attachment_type: type
-      }).select('*').single()
+      const fileExt = uploadName.split('.').pop()
+      const fileName = `${selected.id}/${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`
 
-    if (msg) setMessages(prev => [...prev, msg])
+      const { error } = await supabase.storage.from('chat_attachments').upload(fileName, uploadFile, {
+        contentType: att.type === 'audio' ? 'audio/webm' : (uploadFile as any).type
+      })
+      if (error) { alert('อัปโหลดไฟล์ไม่สำเร็จ'); continue }
+      
+      const { data: urlData } = supabase.storage.from('chat_attachments').getPublicUrl(fileName)
+      const type = att.type === 'audio' ? 'audio' : (uploadFile.type.startsWith('image/') ? 'image' : 'file')
+
+      const { data: msg } = await (supabase as any)
+        .from('support_messages').insert({
+          session_id: selected.id,
+          role: 'admin',
+          content: att.type === 'audio' ? '🎤 Voice Message' : `แนบไฟล์: ${uploadName}`,
+          attachment_url: urlData.publicUrl,
+          attachment_type: type
+        }).select('*').single()
+
+      if (msg) setMessages(prev => [...prev, msg])
+    }
+
+    attachments.forEach(att => URL.revokeObjectURL(att.url))
+    setAttachments([])
 
     await (supabase as any).from('support_sessions').update({
       last_seen: new Date().toISOString(),
       is_read_by_admin: true,
       message_count: (selected.message_count || 0) + 1
     }).eq('id', selected.id)
-
+    
     fetchSessions()
     setSending(false)
   }
@@ -483,9 +674,14 @@ export default function AdminSupport() {
                     </BubbleLabel>
                     <BubbleWrap $admin={msg.role === 'admin'}>
                       <Bubble $role={msg.role}>
-                        {msg.content}
+                        {msg.content && msg.attachment_type !== 'audio' && msg.content}
                         {msg.attachment_url && msg.attachment_type === 'image' && (
-                          <AttachmentImage src={msg.attachment_url} onClick={() => window.open(msg.attachment_url, '_blank')} />
+                          <AttachmentImage src={msg.attachment_url} onClick={() => setLightboxUrl(msg.attachment_url!)} />
+                        )}
+                        {msg.attachment_url && msg.attachment_type === 'audio' && (
+                          <div style={{ marginTop: 4 }}>
+                            <audio controls src={msg.attachment_url} style={{ width: '100%', minWidth: 200, maxWidth: 240, height: 36, display: 'block' }} />
+                          </div>
                         )}
                         {msg.attachment_url && msg.attachment_type === 'file' && (
                           <AttachmentFile href={msg.attachment_url} target="_blank" rel="noopener noreferrer">
@@ -503,29 +699,68 @@ export default function AdminSupport() {
                 <div ref={messagesEndRef} />
               </Messages>
 
-              <InputArea>
-                <input type="file" ref={fileInputRef} style={{ display: 'none' }} onChange={handleFileUpload} />
-                <AttachBtn onClick={() => fileInputRef.current?.click()} disabled={sending} title="แนบไฟล์ (ไม่เกิน 2MB)">
+              {attachments.length > 0 && (
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', padding: '10px 16px', background: 'rgba(0,0,0,0.2)', borderTop: '1px solid rgba(124,58,237,0.1)' }}>
+                  {attachments.map(att => (
+                    att.type === 'image' ? (
+                      <PreviewWrap key={att.id} style={{ flexShrink: 0 }}>
+                        <PreviewImg src={att.url} />
+                        <RemovePreviewBtn onClick={() => removeAttachment(att.id)}><X size={12} /></RemovePreviewBtn>
+                      </PreviewWrap>
+                    ) : (
+                      <div key={att.id} style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(0,0,0,0.4)', padding: '4px 10px', borderRadius: 12, minWidth: 0, position: 'relative', maxWidth: 200 }}>
+                        <audio controls src={att.url} style={{ height: 30, flex: 1, minWidth: 0 }} />
+                        <RemovePreviewBtn style={{ top: -6, right: -6 }} onClick={() => removeAttachment(att.id)}><Trash2 size={12} /></RemovePreviewBtn>
+                      </div>
+                    )
+                  ))}
+                </div>
+              )}
+              <InputArea style={{ position: 'relative' }}>
+                {showMention && filteredGames.length > 0 && (
+                  <MentionMenu>
+                    {filteredGames.map((g, i) => (
+                      <MentionItem key={g.id} $active={i === mentionIndex} onClick={() => insertMention(g)}>
+                        🎮 {g.name}
+                      </MentionItem>
+                    ))}
+                  </MentionMenu>
+                )}
+                <input type="file" ref={fileInputRef} style={{ display: 'none' }} onChange={handleFileUpload} multiple />
+                <AttachBtn onClick={() => fileInputRef.current?.click()} disabled={sending || attachments.length >= 6} title="แนบไฟล์ (สูงสุด 6 ไฟล์)">
                   <Paperclip size={18} />
                 </AttachBtn>
-                <TextArea
-                  placeholder="พิมพ์คำตอบในฐานะ Admin..."
-                  value={replyInput}
-                  onChange={e => setReplyInput(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendReply() } }}
-                  rows={1}
-                  onInput={e => { const el = e.target as HTMLTextAreaElement; el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 120) + 'px' }}
-                  disabled={sending}
-                />
-                <SendBtn onClick={sendReply} disabled={sending || !replyInput.trim()}>
-                  <Send size={14} />
-                  {sending ? 'กำลังส่ง...' : 'ส่ง'}
+                <AttachBtn onClick={toggleRecording} disabled={sending || attachments.length >= 6} title={isRecording ? 'หยุดอัด' : 'อัดเสียง'}>
+                  <Mic size={18} color={isRecording ? '#ef4444' : 'currentColor'} />
+                </AttachBtn>
+                {isRecording ? (
+                  <VoiceIndicator>กำลังอัดเสียง... {formatTime(recordingTime)}</VoiceIndicator>
+                ) : (
+                  <TextArea
+                    placeholder="พิมพ์คำตอบในฐานะ Admin..."
+                    value={replyInput}
+                    onChange={handleInput}
+                    onKeyDown={handleKeyDown}
+                    onPaste={handlePaste}
+                    rows={1}
+                    onInput={e => { const el = e.target as HTMLTextAreaElement; el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 120) + 'px' }}
+                    disabled={sending}
+                  />
+                )}
+                <SendBtn onClick={isRecording ? toggleRecording : sendReply} disabled={sending || (!replyInput.trim() && attachments.length === 0 && !isRecording)}>
+                  {sending ? 'ส่ง...' : isRecording ? <Square size={14} /> : <Send size={14} />}
                 </SendBtn>
               </InputArea>
             </>
           )}
         </ChatPanel>
       </Page>
+      {lightboxUrl && (
+        <LightboxOverlay onClick={() => setLightboxUrl(null)}>
+          <LightboxClose onClick={() => setLightboxUrl(null)}>✕</LightboxClose>
+          <LightboxImg src={lightboxUrl} onClick={e => e.stopPropagation()} />
+        </LightboxOverlay>
+      )}
     </div>
   )
 }

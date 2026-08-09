@@ -10,11 +10,11 @@ import { GoogleGenerativeAI } from '@google/generative-ai'
 export interface ChatMessage {
   role: 'user' | 'assistant'
   content: string
-  attachment?: {
+  attachments?: {
     type: 'image' | 'audio'
     data: string // Base64 data (without data:image/... prefix)
     mimeType: string
-  }
+  }[]
 }
 
 // ── System prompt (mirrors functions/api/chat.ts) ─────────────────
@@ -86,21 +86,30 @@ async function chatDev(messages: ChatMessage[], gameCount: number, totalViews: n
     
     // Build parts array for this message
     const parts: any[] = [{ text: m.content }]
-    if (m.attachment) {
-      parts.push({
-        inlineData: {
-          data: m.attachment.data,
-          mimeType: m.attachment.mimeType
-        }
-      })
+    if (m.attachments) {
+      for (const att of m.attachments) {
+        parts.push({
+          inlineData: {
+            data: att.data,
+            mimeType: att.mimeType
+          }
+        })
+      }
     }
     
     if (role === lastRole) {
       // Append to the last message of the same role
       const lastMsg = normalizedContents[normalizedContents.length - 1]
       lastMsg.parts[0].text += '\n\n' + m.content
-      if (m.attachment) {
-        lastMsg.parts.push(parts[1])
+      if (m.attachments) {
+        for (const att of m.attachments) {
+          lastMsg.parts.push({
+            inlineData: {
+              data: att.data,
+              mimeType: att.mimeType
+            }
+          })
+        }
       }
     } else {
       normalizedContents.push({ role, parts })

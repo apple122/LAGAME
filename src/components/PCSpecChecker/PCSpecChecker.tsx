@@ -95,8 +95,10 @@ const CPU_LIST: string[] = [
   'AMD Ryzen 7 5700X', 'AMD Ryzen 7 5700G',
   'AMD Ryzen 5 5600X', 'AMD Ryzen 5 5600', 'AMD Ryzen 5 5600G', 'AMD Ryzen 5 5500',
   'AMD Ryzen 3 5300G', 'AMD Ryzen 3 5100',
-  // AMD Ryzen 4000 (Renoir Desktop)
-  'AMD Ryzen 7 4700G', 'AMD Ryzen 5 4600G', 'AMD Ryzen 3 4300G',
+  // AMD Ryzen 4000 Series (Mobile & APU)
+  'AMD Ryzen 7 PRO 4750U', 'AMD Ryzen 7 4800H', 'AMD Ryzen 7 4800U', 'AMD Ryzen 7 4700G', 'AMD Ryzen 7 4700U',
+  'AMD Ryzen 5 PRO 4650U', 'AMD Ryzen 5 4600H', 'AMD Ryzen 5 4600U', 'AMD Ryzen 5 4600G', 'AMD Ryzen 5 4500U',
+  'AMD Ryzen 3 PRO 4450U', 'AMD Ryzen 3 4300U', 'AMD Ryzen 3 4300G',
   // AMD Ryzen 3000 Series
   'AMD Ryzen 9 3950X', 'AMD Ryzen 9 3900X', 'AMD Ryzen 9 3900',
   'AMD Ryzen 7 3800X', 'AMD Ryzen 7 3700X',
@@ -676,7 +678,7 @@ Return ONLY valid JSON (no markdown, no extra text):
     "Specific tip 3 about CPU/GPU optimization"
   ]
 }
-Note: fps_low=1% low, fps_avg=average, fps_high=peak. ${!hasGpu ? 'No GPU specified — set fps values to null for all presets, settings resolution to 720p, and mention integrated graphics limitation.' : 'Estimate realistic FPS based on known benchmarks for this GPU+game combo.'}`
+Note: fps_low=1% low, fps_avg=average, fps_high=peak. ${!hasGpu ? "If no GPU is specified, ASSUME the user is using the integrated/onboard graphics of the specified CPU (e.g. Radeon Graphics, Intel Iris Xe, UHD). Estimate realistic FPS for the CPU's integrated graphics." : "Estimate realistic FPS based on known benchmarks for this GPU+game combo."}`
 
   const result = await generateGameData(prompt)
   return result as SpecResult

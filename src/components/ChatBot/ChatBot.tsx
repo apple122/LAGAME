@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import styled, { keyframes, css } from 'styled-components'
-import { X, Send, Bot, ChevronDown, AlertCircle, MessageCircle, Headphones, Paperclip, File, Trash2, Maximize, Minimize, Mic, Square, Image as ImageIcon } from 'lucide-react'
+import { X, Send, Bot, ChevronDown, AlertCircle, MessageCircle, Headphones, File, Trash2, Maximize, Minimize, Mic, Square, Image as ImageIcon } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { sendChatMessage } from '../../lib/chatService'
 import type { ChatMessage } from '../../lib/chatService'
@@ -42,11 +42,12 @@ const FloatBtn = styled.button<{ $open: boolean }>`
   }
 `
 const UnreadDot = styled.div`
-  position: absolute; top: 4px; right: 4px;
-  width: 14px; height: 14px; border-radius: 50%;
+  position: absolute; top: 0px; right: 0px;
+  width: 20px; height: 20px; border-radius: 50%;
   background: #ef4444; border: 2px solid #080814;
   display: flex; align-items: center; justify-content: center;
-  font-size: 8px; font-weight: 900; color: #fff;
+  font-size: 13px; font-weight: 900; color: #fff;
+  box-shadow: 0 0 10px rgba(239,68,68,0.6);
 `
 const Window = styled.div<{ $maximized: boolean }>`
   width: ${p => p.$maximized ? '80vw' : '380px'}; 
@@ -187,7 +188,7 @@ const NameInput = styled.input`
 
 // ── Input Area ────────────────────────────────────────────────────
 const InputArea = styled.div`padding: 12px 14px; border-top: 1px solid rgba(124,58,237,0.12); display: flex; flex-direction: column; gap: 8px;`
-const InputRow = styled.div`display: flex; gap: 8px; align-items: flex-end;`
+const InputRow = styled.div`display: flex; gap: 8px; align-items: flex-end; position: relative;`
 const TextArea = styled.textarea`
   flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(124,58,237,0.2); border-radius: 12px;
   color: #e2e8f0; font-size: 13.5px; padding: 10px 13px; font-family: 'Noto Sans Lao', sans-serif;
@@ -210,7 +211,27 @@ const AttachBtn = styled.button`
   &:hover { background: rgba(124,58,237,0.1); color: #c4b5fd; border-color: rgba(124,58,237,0.4); }
   &:disabled { opacity: 0.5; cursor: not-allowed; }
 `
-const AttachmentImage = styled.img`max-width: 100%; border-radius: 8px; margin-top: 6px; cursor: pointer;`
+const AttachmentImage = styled.img`max-width: 100%; border-radius: 8px; margin-top: 6px; cursor: zoom-in;`
+const LightboxOverlay = styled.div`
+  position: fixed; inset: 0; z-index: 9999;
+  background: rgba(0,0,0,0.85); backdrop-filter: blur(8px);
+  display: flex; align-items: center; justify-content: center;
+  animation: ${fadeIn} 0.18s ease;
+  cursor: zoom-out;
+`
+const LightboxImg = styled.img`
+  max-width: 90vw; max-height: 90vh; border-radius: 12px;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.8); cursor: default;
+  object-fit: contain;
+`
+const LightboxClose = styled.button`
+  position: fixed; top: 20px; right: 24px;
+  background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+  color: #fff; border-radius: 50%; width: 40px; height: 40px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; font-size: 20px; backdrop-filter: blur(8px);
+  &:hover { background: rgba(255,255,255,0.2); }
+`
 const AttachmentFile = styled.a`
   display: flex; align-items: center; gap: 8px; padding: 10px 12px; margin-top: 6px;
   background: rgba(0,0,0,0.2); border-radius: 8px; color: #e2e8f0; text-decoration: none; font-size: 12px;
@@ -231,6 +252,19 @@ const Spinner = styled.div`
   border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff;
   animation: ${spin} 0.7s linear infinite;
 `
+const MentionMenu = styled.ul`
+  position: absolute; bottom: 100%; left: 0; right: 0; max-height: 200px;
+  background: #1e1e24; border: 1px solid rgba(124,58,237,0.3); border-radius: 12px;
+  margin: 0 14px 8px; padding: 4px; overflow-y: auto; list-style: none;
+  box-shadow: 0 -4px 12px rgba(0,0,0,0.4); z-index: 10;
+  &::-webkit-scrollbar { width: 6px; }
+  &::-webkit-scrollbar-thumb { background: rgba(124,58,237,0.5); border-radius: 3px; }
+`
+const MentionItem = styled.li<{ $active?: boolean }>`
+  padding: 8px 12px; border-radius: 8px; cursor: pointer; color: #e2e8f0; font-size: 13px;
+  background: ${p => p.$active ? 'rgba(124,58,237,0.2)' : 'transparent'};
+  &:hover { background: rgba(124,58,237,0.1); }
+`
 
 // ══════════════════════════════════════════════════════════════════
 export default function ChatBot() {
@@ -239,6 +273,7 @@ export default function ChatBot() {
   const [maximized, setMaximized] = useState(false)
   const [mode, setMode] = useState<AppMode>('ai')
   const [hasUnread, setHasUnread] = useState(false)
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
 
   // ── Features toggles ──
   const [features, setFeatures] = useState({ enable_text: true, enable_voice: false, enable_image: false })
@@ -249,16 +284,21 @@ export default function ChatBot() {
   const [aiLoading, setAiLoading] = useState(false)
   
   // Attachments for AI
-  const [aiImagePreview, setAiImagePreview] = useState<string | null>(null)
-  const [aiImageBase64, setAiImageBase64] = useState<string | null>(null)
-  const [aiImageMimeType, setAiImageMimeType] = useState<string | null>(null)
+  const [aiAttachments, setAiAttachments] = useState<{ id: string, type: 'image' | 'audio', url: string, blob?: Blob, base64?: string, mimeType: string }[]>([])
   const aiFileInputRef = useRef<HTMLInputElement>(null)
 
   // Voice recording
   const [isRecording, setIsRecording] = useState(false)
+  const [recordingTime, setRecordingTime] = useState(0)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
+  const timerRef = useRef<number | null>(null)
 
+  const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60)
+    const s = seconds % 60
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
+  }
   const [gameCount, setGameCount] = useState(0)
   const [totalViews, setTotalViews] = useState(0)
 
@@ -269,6 +309,13 @@ export default function ChatBot() {
   const [supportInput, setSupportInput] = useState('')
   const [supportSending, setSupportSending] = useState(false)
   const [nameInput, setNameInput] = useState('')
+  // Support Chat attachments queue (images + audio previewed before send)
+  const [supportAttachments, setSupportAttachments] = useState<{ id: string; file?: File; blob?: Blob; url: string; type: 'image' | 'audio'; name?: string }[]>([])
+  const [isSupportRecording, setIsSupportRecording] = useState(false)
+  const [supportRecordingTime, setSupportRecordingTime] = useState(0)
+  const supportMediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const supportAudioChunksRef = useRef<Blob[]>([])
+  const supportTimerRef = useRef<number | null>(null)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const aiTextRef = useRef<HTMLTextAreaElement>(null)
@@ -279,17 +326,28 @@ export default function ChatBot() {
   // Localized quick questions
   const QUICK_QUESTIONS = [t('chat.quick_q1'), t('chat.quick_q2'), t('chat.quick_q3')]
 
+  // Games list for @mention
+  const [gamesList, setGamesList] = useState<string[]>([])
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null)
+  const [mentionIndex, setMentionIndex] = useState(0)
+  const [cursorPos, setCursorPos] = useState(0)
+
   // ── Initialization ───────────────────────────────────────────────
   useEffect(() => {
     const fetchStatsAndSettings = async () => {
-      const [{ count: gc }, { data: gd }, { data: settings }] = await Promise.all([
+      const [{ count: gc }, { data: gd }, { data: settings }, { data: titles }] = await Promise.all([
         supabase.from('games').select('id', { count: 'exact', head: true }),
         supabase.from('games').select('view_count'),
-        (supabase as any).from('chatbot_settings').select('*').limit(1).single()
+        (supabase as any).from('chatbot_settings').select('*').limit(1).single(),
+        supabase.from('games').select('title')
       ])
       setGameCount(gc || 0)
       setTotalViews((gd || []).reduce((s: number, g: any) => s + (g.view_count || 0), 0))
       
+      if (titles) {
+        setGamesList(titles.map((t: any) => t.title).filter(Boolean))
+      }
+
       if (settings) {
         setFeatures({ enable_text: settings.enable_text, enable_voice: settings.enable_voice, enable_image: settings.enable_image })
       }
@@ -394,11 +452,13 @@ export default function ChatBot() {
 
   const sendSupportMessage = async () => {
     const content = supportInput.trim()
-    if (!content || supportSending) return
+    if (!content && supportAttachments.length === 0) return
+    if (supportSending) return
     setSupportInput('')
     if (supportTextRef.current) supportTextRef.current.style.height = 'auto'
 
     if (supportPhase === 'naming' || !supportSessionId) {
+      if (!content) { alert(t('chat.send_first_before_attach')); return }
       setSupportSending(true)
       await startSupportSession(content)
       setSupportSending(false)
@@ -406,9 +466,48 @@ export default function ChatBot() {
     }
 
     setSupportSending(true)
-    const { data: msg } = await (supabase as any)
-      .from('support_messages').insert({ session_id: supportSessionId, role: 'user', content }).select('*').single()
-    if (msg) setSupportMessages(prev => [...prev, msg])
+
+    // Send text message if any
+    if (content) {
+      const { data: msg } = await (supabase as any)
+        .from('support_messages').insert({ session_id: supportSessionId, role: 'user', content }).select('*').single()
+      if (msg) setSupportMessages(prev => [...prev, msg])
+    }
+
+    // Upload each attachment one by one
+    for (const att of supportAttachments) {
+      let uploadFile: Blob | null = att.file ?? null
+      if (!uploadFile && att.blob) {
+        uploadFile = att.blob
+      }
+      if (!uploadFile) continue
+      const uploadName = att.file?.name ?? `voice_${Date.now()}.webm`
+
+      const fileExt = uploadName.split('.').pop()
+      const fileName = `${supportSessionId}/${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`
+
+      const { error } = await supabase.storage.from('chat_attachments').upload(fileName, uploadFile, {
+        contentType: att.type === 'audio' ? 'audio/webm' : (uploadFile as any).type
+      })
+      if (error) { alert(t('chat.upload_failed')); continue }
+      const { data: urlData } = supabase.storage.from('chat_attachments').getPublicUrl(fileName)
+      const type = att.type === 'audio' ? 'audio' : (uploadFile.type.startsWith('image/') ? 'image' : 'file')
+
+      const { data: msg } = await (supabase as any)
+        .from('support_messages').insert({
+          session_id: supportSessionId,
+          role: 'user',
+          content: att.type === 'audio' ? '🎤 Voice Message' : `📎 ${uploadName}`,
+          attachment_url: urlData.publicUrl,
+          attachment_type: type
+        }).select('*').single()
+
+      if (msg) setSupportMessages(prev => [...prev, msg])
+    }
+
+    // Clear attachment queue
+    supportAttachments.forEach(att => URL.revokeObjectURL(att.url))
+    setSupportAttachments([])
 
     await updateSupportLastSeen(supportSessionId)
     setSupportSending(false)
@@ -421,34 +520,91 @@ export default function ChatBot() {
     }).eq('id', id)
   }
 
-  const handleSupportFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+  const handleSupportFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files) return
+    const filesArray = Array.from(e.target.files) // capture before clearing
     if (fileInputRef.current) fileInputRef.current.value = ''
-    if (file.size > 2 * 1024 * 1024) { alert(t('chat.file_too_large')); return }
-    if (supportPhase === 'naming' || !supportSessionId) { alert(t('chat.send_first_before_attach')); return }
+    if (supportAttachments.length >= 6) { alert('Maximum 6 attachments per message.'); return }
+    
+    filesArray.slice(0, 6 - supportAttachments.length).forEach(file => {
+      if (file.size > 5 * 1024 * 1024) { alert(t('chat.file_too_large')); return }
+      const url = URL.createObjectURL(file)
+      setSupportAttachments(prev => [...prev, {
+        id: Math.random().toString(36).slice(2, 11),
+        file,
+        url,
+        type: 'image',
+        name: file.name
+      }])
+    })
+  }
 
-    setSupportSending(true)
-    const fileExt = file.name.split('.').pop()
-    const fileName = `${supportSessionId}/${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`
+  const handleSupportPaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = e.clipboardData?.items
+    if (!items) return
+    if (supportAttachments.length >= 6) return
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.indexOf('image/') !== -1) {
+        e.preventDefault()
+        const file = items[i].getAsFile()
+        if (file) {
+          const url = URL.createObjectURL(file)
+          setSupportAttachments(prev => [...prev, {
+            id: Math.random().toString(36).slice(2, 11),
+            file,
+            url,
+            type: 'image',
+            name: `pasted_image_${Date.now()}.png`
+          }])
+        }
+        break
+      }
+    }
+  }
 
-    const { error } = await supabase.storage.from('chat_attachments').upload(fileName, file)
-    if (error) { alert(t('chat.upload_failed')); setSupportSending(false); return }
-    const { data: urlData } = supabase.storage.from('chat_attachments').getPublicUrl(fileName)
-    const type = file.type.startsWith('image/') ? 'image' : 'file'
+  const removeSupportAttachment = (id: string) => {
+    setSupportAttachments(prev => {
+      const att = prev.find(a => a.id === id)
+      if (att) URL.revokeObjectURL(att.url)
+      return prev.filter(a => a.id !== id)
+    })
+  }
 
-    const { data: msg } = await (supabase as any)
-      .from('support_messages').insert({
-        session_id: supportSessionId,
-        role: 'user',
-        content: `แนบไฟล์: ${file.name}`,
-        attachment_url: urlData.publicUrl,
-        attachment_type: type
-      }).select('*').single()
-
-    if (msg) setSupportMessages(prev => [...prev, msg])
-    await updateSupportLastSeen(supportSessionId)
-    setSupportSending(false)
+  const toggleSupportRecording = async () => {
+    if (isSupportRecording) {
+      if (supportMediaRecorderRef.current) supportMediaRecorderRef.current.stop()
+      setIsSupportRecording(false)
+      if (supportTimerRef.current) clearInterval(supportTimerRef.current)
+    } else {
+      if (supportAttachments.length >= 6) { alert('Maximum 6 attachments per message.'); return }
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+        supportMediaRecorderRef.current = new MediaRecorder(stream)
+        supportAudioChunksRef.current = []
+        setSupportRecordingTime(0)
+        
+        supportMediaRecorderRef.current.ondataavailable = (e) => {
+          if (e.data.size > 0) supportAudioChunksRef.current.push(e.data)
+        }
+        supportMediaRecorderRef.current.onstop = () => {
+          const audioBlob = new Blob(supportAudioChunksRef.current, { type: 'audio/webm' })
+          const url = URL.createObjectURL(audioBlob)
+          setSupportAttachments(prev => [...prev, {
+            id: Math.random().toString(36).slice(2, 11),
+            blob: audioBlob,
+            url,
+            type: 'audio'
+          }])
+          stream.getTracks().forEach(track => track.stop())
+        }
+        
+        supportMediaRecorderRef.current.start()
+        setIsSupportRecording(true)
+        supportTimerRef.current = window.setInterval(() => setSupportRecordingTime(prev => prev + 1), 1000)
+      } catch (e) {
+        alert('Microphone access denied or not available.')
+      }
+    }
   }
 
   const deleteSupportMessage = async (id: string) => {
@@ -464,38 +620,134 @@ export default function ChatBot() {
     setSupportSessionId(null); setSupportMessages([]); setNameInput(''); setSupportPhase('naming')
   }
 
-  // ── AI Actions ────────────────────────────────────────────────────
-  const handleAiImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    if (aiFileInputRef.current) aiFileInputRef.current.value = ''
-    if (file.size > 4 * 1024 * 1024) { alert('Image size must be less than 4MB'); return }
-    
-    const reader = new FileReader()
-    reader.onload = (event) => {
-      const dataUrl = event.target?.result as string
-      setAiImagePreview(dataUrl)
-      setAiImageBase64(dataUrl.split(',')[1])
-      setAiImageMimeType(file.type)
+  // ── Support @Mention ──────────────────────────────────────────────
+  const [supportMentionQuery, setSupportMentionQuery] = useState<string | null>(null)
+  const [supportMentionIndex, setSupportMentionIndex] = useState(0)
+  const [supportCursorPos, setSupportCursorPos] = useState(0)
+
+  const filteredGamesSupport = useMemo(() => {
+    if (supportMentionQuery === null) return []
+    const q = supportMentionQuery.toLowerCase()
+    return gamesList.filter(g => g.toLowerCase().includes(q)).slice(0, 10)
+  }, [supportMentionQuery, gamesList])
+
+  const handleSupportInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value
+    setSupportInput(val)
+    autoResize(e.target)
+    const cursor = e.target.selectionStart
+    const textBeforeCursor = val.slice(0, cursor)
+    const match = textBeforeCursor.match(/(?:^|\s)@([^\s]*)$/)
+    if (match) {
+      setSupportMentionQuery(match[1])
+      setSupportCursorPos(cursor)
+      setSupportMentionIndex(0)
+    } else {
+      setSupportMentionQuery(null)
     }
-    reader.readAsDataURL(file)
   }
 
-  const clearAiImage = () => {
-    setAiImagePreview(null); setAiImageBase64(null); setAiImageMimeType(null)
+  const insertSupportMention = (game: string) => {
+    if (supportMentionQuery === null) return
+    const textBefore = supportInput.slice(0, supportCursorPos - supportMentionQuery.length - 1)
+    const textAfter = supportInput.slice(supportCursorPos)
+    const newText = textBefore + game + ' ' + textAfter
+    setSupportInput(newText)
+    setSupportMentionQuery(null)
+    setTimeout(() => {
+      if (supportTextRef.current) {
+        const newCursor = textBefore.length + game.length + 1
+        supportTextRef.current.setSelectionRange(newCursor, newCursor)
+        supportTextRef.current.focus()
+      }
+    }, 0)
+  }
+
+  const handleSupportKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (supportMentionQuery !== null && filteredGamesSupport.length > 0) {
+      if (e.key === 'ArrowDown') { e.preventDefault(); setSupportMentionIndex(prev => (prev + 1) % filteredGamesSupport.length); return }
+      if (e.key === 'ArrowUp') { e.preventDefault(); setSupportMentionIndex(prev => (prev - 1 + filteredGamesSupport.length) % filteredGamesSupport.length); return }
+      if (e.key === 'Enter') { e.preventDefault(); insertSupportMention(filteredGamesSupport[supportMentionIndex]); return }
+      if (e.key === 'Escape') { e.preventDefault(); setSupportMentionQuery(null); return }
+    }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendSupportMessage() }
+  }
+
+  // ── AI Actions ────────────────────────────────────────────────────
+  const removeAiAttachment = (id: string) => {
+    setAiAttachments(prev => {
+      const att = prev.find(a => a.id === id)
+      if (att && att.type === 'audio') {
+        URL.revokeObjectURL(att.url)
+      }
+      return prev.filter(a => a.id !== id)
+    })
+  }
+
+  const handleAiImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files) return
+    const filesArray = Array.from(e.target.files)
+    if (aiFileInputRef.current) aiFileInputRef.current.value = ''
+    
+    if (aiAttachments.length >= 4) { alert('Maximum 4 attachments allowed per message.'); return }
+    
+    filesArray.slice(0, 4 - aiAttachments.length).forEach(file => {
+      if (file.size > 4 * 1024 * 1024) { alert('Image size must be less than 4MB'); return }
+      const reader = new FileReader()
+      reader.onload = (event) => {
+        const dataUrl = event.target?.result as string
+        setAiAttachments(prev => [...prev, {
+          id: Math.random().toString(36).slice(2, 11),
+          type: 'image',
+          url: dataUrl,
+          base64: dataUrl.split(',')[1],
+          mimeType: file.type
+        }])
+      }
+      reader.readAsDataURL(file)
+    })
+  }
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = e.clipboardData?.items
+    if (!items) return
+    if (aiAttachments.length >= 4) return // Skip if limit reached
+    
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.indexOf('image/') !== -1) {
+        e.preventDefault()
+        const file = items[i].getAsFile()
+        if (file) {
+          const reader = new FileReader()
+          reader.onload = (event) => {
+            const dataUrl = event.target?.result as string
+            setAiAttachments(prev => [...prev, {
+              id: Math.random().toString(36).slice(2, 11),
+              type: 'image',
+              url: dataUrl,
+              base64: dataUrl.split(',')[1],
+              mimeType: file.type
+            }])
+          }
+          reader.readAsDataURL(file)
+        }
+        break // only paste one image per paste action to avoid duplicates from multi-format clipboards
+      }
+    }
   }
 
   const toggleRecording = async () => {
     if (isRecording) {
-      // Stop recording
       if (mediaRecorderRef.current) mediaRecorderRef.current.stop()
       setIsRecording(false)
+      if (timerRef.current) clearInterval(timerRef.current)
     } else {
-      // Start recording
+      if (aiAttachments.length >= 4) { alert('Maximum 4 attachments allowed per message.'); return }
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
         mediaRecorderRef.current = new MediaRecorder(stream)
         audioChunksRef.current = []
+        setRecordingTime(0)
         
         mediaRecorderRef.current.ondataavailable = (e) => {
           if (e.data.size > 0) audioChunksRef.current.push(e.data)
@@ -503,44 +755,66 @@ export default function ChatBot() {
         
         mediaRecorderRef.current.onstop = () => {
           const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
-          const reader = new FileReader()
-          reader.onload = (event) => {
-            const dataUrl = event.target?.result as string
-            const base64 = dataUrl.split(',')[1]
-            sendAiMessage('[Voice Message]', { type: 'audio', data: base64, mimeType: 'audio/webm' })
-          }
-          reader.readAsDataURL(audioBlob)
+          const url = URL.createObjectURL(audioBlob)
+          setAiAttachments(prev => [...prev, {
+            id: Math.random().toString(36).slice(2, 11),
+            type: 'audio',
+            url,
+            blob: audioBlob,
+            mimeType: 'audio/webm'
+          }])
           stream.getTracks().forEach(track => track.stop())
         }
         
         mediaRecorderRef.current.start()
         setIsRecording(true)
+        timerRef.current = window.setInterval(() => setRecordingTime(prev => prev + 1), 1000)
       } catch (e) {
         alert('Microphone access denied or not available. HTTPS is required for microphone access.')
       }
     }
   }
 
-  const sendAiMessage = useCallback(async (text?: string, attachmentPayload?: ChatMessage['attachment']) => {
+  const sendAiMessage = useCallback(async (text?: string) => {
+    if (mentionQuery !== null) setMentionQuery(null) // Close mention dropdown on send
     const content = (text ?? aiInput).trim()
-    if (!content && !attachmentPayload && !aiImageBase64) return
+    if (!content && aiAttachments.length === 0) return
     
-    // Construct attachment object if present
-    let finalAttachment = attachmentPayload
-    if (!finalAttachment && aiImageBase64 && aiImageMimeType) {
-      finalAttachment = { type: 'image', data: aiImageBase64, mimeType: aiImageMimeType }
+    setAiLoading(true)
+    
+    // Process attachments to get base64
+    const processedAttachments = await Promise.all(aiAttachments.map(async (att) => {
+      if (att.type === 'audio' && att.blob) {
+        return new Promise<any>((resolve) => {
+          const reader = new FileReader()
+          reader.onload = (event) => {
+            const dataUrl = event.target?.result as string
+            resolve({ type: 'audio', data: dataUrl.split(',')[1], mimeType: 'audio/webm' })
+          }
+          reader.readAsDataURL(att.blob!)
+        })
+      }
+      return { type: att.type, data: att.base64, mimeType: att.mimeType }
+    }))
+    
+    const userMsg: ChatMessage = { 
+      role: 'user', 
+      content: content || (processedAttachments.every(a => a.type === 'image') ? '[Image Only]' : processedAttachments.every(a => a.type === 'audio') ? '[Voice Message]' : '[Attachments]'), 
+      attachments: processedAttachments.length > 0 ? processedAttachments : undefined 
     }
     
-    const userMsg: ChatMessage = { role: 'user', content: content || '[Image Only]', attachment: finalAttachment }
-    
-    // Filter out previous errors
     const validMessages = aiMessages.filter(m => !(m as any)._isError)
     const newMessages = [...validMessages, userMsg]
     
     setAiMessages([...aiMessages, userMsg])
     if (!text) setAiInput('')
-    clearAiImage()
-    setAiLoading(true)
+    
+    // clear attachments
+    aiAttachments.forEach(att => {
+      if (att.type === 'audio') URL.revokeObjectURL(att.url)
+    })
+    setAiAttachments([])
+    
     if (aiTextRef.current) aiTextRef.current.style.height = 'auto'
     
     try {
@@ -551,9 +825,81 @@ export default function ChatBot() {
       setAiMessages(prev => [...prev, { role: 'assistant' as any, content: isQuota ? t('chat.ai_quota') : t('chat.ai_error'), _isError: true } as any])
     }
     setAiLoading(false)
-  }, [aiInput, aiMessages, aiLoading, gameCount, totalViews, aiImageBase64, aiImageMimeType, t])
+  }, [aiInput, aiMessages, aiLoading, gameCount, totalViews, aiAttachments, t])
 
   const autoResize = (el: HTMLTextAreaElement) => { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 100) + 'px' }
+
+  // ── @Mention Logic ──
+  const filteredGames = useMemo(() => {
+    if (mentionQuery === null) return []
+    const q = mentionQuery.toLowerCase()
+    return gamesList.filter(g => g.toLowerCase().includes(q)).slice(0, 10)
+  }, [mentionQuery, gamesList])
+
+  const handleAiInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value
+    setAiInput(val)
+    autoResize(e.target)
+    
+    const cursor = e.target.selectionStart
+    const textBeforeCursor = val.slice(0, cursor)
+    const match = textBeforeCursor.match(/(?:^|\s)@([^\s]*)$/)
+    
+    if (match) {
+      setMentionQuery(match[1])
+      setCursorPos(cursor)
+      setMentionIndex(0)
+    } else {
+      setMentionQuery(null)
+    }
+  }
+
+  const insertMention = (game: string) => {
+    if (mentionQuery === null) return
+    const textBefore = aiInput.slice(0, cursorPos - mentionQuery.length - 1)
+    const textAfter = aiInput.slice(cursorPos)
+    const newText = textBefore + game + ' ' + textAfter
+    setAiInput(newText)
+    setMentionQuery(null)
+    
+    setTimeout(() => {
+      if (aiTextRef.current) {
+        const newCursor = textBefore.length + game.length + 1
+        aiTextRef.current.setSelectionRange(newCursor, newCursor)
+        aiTextRef.current.focus()
+      }
+    }, 0)
+  }
+
+  const handleAiInputKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (mentionQuery !== null && filteredGames.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        setMentionIndex(prev => (prev + 1) % filteredGames.length)
+        return
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        setMentionIndex(prev => (prev - 1 + filteredGames.length) % filteredGames.length)
+        return
+      }
+      if (e.key === 'Enter') {
+        e.preventDefault()
+        insertMention(filteredGames[mentionIndex])
+        return
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        setMentionQuery(null)
+        return
+      }
+    }
+    
+    if (e.key === 'Enter' && !e.shiftKey) { 
+      e.preventDefault()
+      sendAiMessage() 
+    }
+  }
 
   const deleteAiMessage = (index: number) => {
     if (!confirm(t('chat.delete_confirm'))) return
@@ -613,13 +959,17 @@ export default function ChatBot() {
                   <BubbleWrap key={i} $isUser={msg.role === 'user'}>
                     <Bubble $role={(msg as any)._isError ? 'error' : msg.role}>
                       {(msg as any)._isError && <AlertCircle size={14} style={{ flexShrink: 0, marginTop: 2 }} />}
-                      {msg.attachment?.type === 'image' && (
-                        <AttachmentImage src={`data:${msg.attachment.mimeType};base64,${msg.attachment.data}`} />
-                      )}
-                      {msg.attachment?.type === 'audio' && (
-                        <div style={{ padding: '8px', background: 'rgba(0,0,0,0.2)', borderRadius: 8, marginBottom: 4 }}>🎤 Voice Message Sent</div>
-                      )}
-                      {msg.content !== '[Image Only]' && msg.content !== '[Voice Message]' && msg.content}
+                      {msg.attachments?.map((att, idx) => (
+                        <div key={idx} style={{ marginBottom: 4 }}>
+                          {att.type === 'image' && (
+                            <AttachmentImage src={`data:${att.mimeType};base64,${att.data}`} onClick={() => setLightboxUrl(`data:${att.mimeType};base64,${att.data}`)} />
+                          )}
+                          {att.type === 'audio' && (
+                            <audio controls src={`data:${att.mimeType};base64,${att.data}`} style={{ height: 36, maxWidth: 220 }} />
+                          )}
+                        </div>
+                      ))}
+                      {msg.content !== '[Image Only]' && msg.content !== '[Voice Message]' && msg.content !== '[Attachments]' && msg.content}
                     </Bubble>
                       {msg.role === 'user' && (
                         <MsgDeleteBtn className="msg-delete" onClick={() => deleteAiMessage(i)} title={t('chat.delete_confirm')}>
@@ -633,44 +983,66 @@ export default function ChatBot() {
               </Messages>
               
               <InputArea>
-                {aiImagePreview && (
-                  <PreviewWrap>
-                    <PreviewImg src={aiImagePreview} />
-                    <RemovePreviewBtn onClick={clearAiImage}><X size={12} /></RemovePreviewBtn>
-                  </PreviewWrap>
+                {aiAttachments.length > 0 && (
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', paddingBottom: 4 }}>
+                    {aiAttachments.map(att => (
+                      att.type === 'image' ? (
+                        <PreviewWrap key={att.id} style={{ flexShrink: 0 }}>
+                          <PreviewImg src={att.url} />
+                          <RemovePreviewBtn onClick={() => removeAiAttachment(att.id)}><X size={12} /></RemovePreviewBtn>
+                        </PreviewWrap>
+                      ) : (
+                        <div key={att.id} style={{ flexShrink: 0, width: 220, display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(0,0,0,0.2)', padding: '4px 10px', borderRadius: 12, minWidth: 0, position: 'relative' }}>
+                          <audio controls src={att.url} style={{ height: 32, flex: 1, minWidth: 0, width: '100%' }} />
+                          <RemovePreviewBtn style={{ top: -6, right: -6 }} onClick={() => removeAiAttachment(att.id)}><Trash2 size={12} /></RemovePreviewBtn>
+                        </div>
+                      )
+                    ))}
+                  </div>
                 )}
                 <InputRow>
                   {features.enable_image && (
                     <>
-                      <input type="file" accept="image/*" ref={aiFileInputRef} style={{ display: 'none' }} onChange={handleAiImageSelect} />
-                      <AttachBtn onClick={() => aiFileInputRef.current?.click()} disabled={aiLoading || isRecording} title="Attach Image">
+                      <input type="file" accept="image/*" multiple ref={aiFileInputRef} style={{ display: 'none' }} onChange={handleAiImageSelect} />
+                      <AttachBtn onClick={() => aiFileInputRef.current?.click()} disabled={aiLoading || isRecording || aiAttachments.length >= 4} title="Attach Image">
                         <ImageIcon size={18} />
                       </AttachBtn>
                     </>
                   )}
                   {features.enable_voice && (
-                    <AttachBtn onClick={toggleRecording} disabled={aiLoading} title={isRecording ? "Stop Recording" : "Record Voice"}>
+                    <AttachBtn onClick={toggleRecording} disabled={aiLoading || (!isRecording && aiAttachments.length >= 4)} title={isRecording ? "Stop Recording" : "Record Voice"}>
                       {isRecording ? <Square size={16} fill="#ef4444" color="#ef4444" /> : <Mic size={18} />}
                     </AttachBtn>
                   )}
                   
                   {isRecording ? (
-                    <VoiceIndicator>Recording Audio...</VoiceIndicator>
+                    <VoiceIndicator>Recording Audio... {formatTime(recordingTime)}</VoiceIndicator>
                   ) : features.enable_text ? (
-                    <TextArea ref={aiTextRef} placeholder="พิมพ์ข้อความ... (Enter ส่ง)" value={aiInput}
-                      onChange={e => { setAiInput(e.target.value); autoResize(e.target) }}
-                      onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendAiMessage() } }}
+                    <TextArea ref={aiTextRef} placeholder="พิมพ์ข้อความ... (Enter ส่ง, พิมพ์ @ แนะนำชื่อเกม)" value={aiInput}
+                      onChange={handleAiInputChange}
+                      onKeyDown={handleAiInputKeyDown}
+                      onPaste={handlePaste}
                       rows={1} disabled={aiLoading} />
                   ) : null}
                   
-                  {(features.enable_text || aiImagePreview) && !isRecording && (
-                    <SendBtn onClick={() => sendAiMessage()} $loading={aiLoading} disabled={aiLoading || (!aiInput.trim() && !aiImageBase64)}>
+                  {mentionQuery !== null && filteredGames.length > 0 && (
+                    <MentionMenu>
+                      {filteredGames.map((g, i) => (
+                        <MentionItem key={g} $active={i === mentionIndex} onClick={() => insertMention(g)}>
+                          {g}
+                        </MentionItem>
+                      ))}
+                    </MentionMenu>
+                  )}
+                  
+                  {(features.enable_text || aiAttachments.length > 0) && !isRecording && (
+                    <SendBtn onClick={() => sendAiMessage()} $loading={aiLoading} disabled={aiLoading || (!aiInput.trim() && aiAttachments.length === 0)}>
                       {aiLoading ? <Spinner /> : <Send size={16} />}
                     </SendBtn>
                   )}
                   {isRecording && (
                     <SendBtn onClick={toggleRecording} $isRecord>
-                      <Send size={16} />
+                      <Square size={16} />
                     </SendBtn>
                   )}
                 </InputRow>
@@ -706,9 +1078,15 @@ export default function ChatBot() {
                     {msg.role === 'admin' && <RoleLabel $admin>Admin</RoleLabel>}
                     <BubbleWrap $isUser={msg.role === 'user'}>
                       <Bubble $role={msg.role}>
-                        {msg.content}
+                        {/* Debug info */}
+                        {msg.content && msg.content}
                         {msg.attachment_url && msg.attachment_type === 'image' && (
-                          <AttachmentImage src={msg.attachment_url} onClick={() => window.open(msg.attachment_url, '_blank')} />
+                          <AttachmentImage src={msg.attachment_url} onClick={() => setLightboxUrl(msg.attachment_url!)} />
+                        )}
+                        {msg.attachment_url && msg.attachment_type === 'audio' && (
+                          <div style={{ marginTop: 4 }}>
+                            <audio controls src={msg.attachment_url} style={{ width: '100%', minWidth: 200, maxWidth: 240, height: 36, display: 'block' }} />
+                          </div>
                         )}
                         {msg.attachment_url && msg.attachment_type === 'file' && (
                           <AttachmentFile href={msg.attachment_url} target="_blank" rel="noopener noreferrer">
@@ -736,19 +1114,54 @@ export default function ChatBot() {
               </Messages>
 
               <InputArea>
+                {/* Attachment previews */}
+                {supportAttachments.length > 0 && (
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', paddingBottom: 4 }}>
+                    {supportAttachments.map(att => (
+                      att.type === 'image' ? (
+                        <PreviewWrap key={att.id} style={{ flexShrink: 0 }}>
+                          <PreviewImg src={att.url} />
+                          <RemovePreviewBtn onClick={() => removeSupportAttachment(att.id)}><X size={12} /></RemovePreviewBtn>
+                        </PreviewWrap>
+                      ) : (
+                        <div key={att.id} style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(0,0,0,0.2)', padding: '4px 10px', borderRadius: 12, minWidth: 0, position: 'relative', maxWidth: 200 }}>
+                          <audio controls src={att.url} style={{ height: 30, flex: 1, minWidth: 0 }} />
+                          <RemovePreviewBtn style={{ top: -6, right: -6 }} onClick={() => removeSupportAttachment(att.id)}><Trash2 size={12} /></RemovePreviewBtn>
+                        </div>
+                      )
+                    ))}
+                  </div>
+                )}
                 <InputRow>
-                  <input type="file" ref={fileInputRef} style={{ display: 'none' }} onChange={handleSupportFileUpload} />
-                  <AttachBtn onClick={() => fileInputRef.current?.click()} disabled={supportSending} title={t('chat.send_first_before_attach')}>
-                    <Paperclip size={18} />
+                  <input type="file" accept="image/*" multiple ref={fileInputRef} style={{ display: 'none' }} onChange={handleSupportFileUpload} />
+                  <AttachBtn onClick={() => fileInputRef.current?.click()} disabled={supportSending || isSupportRecording || supportAttachments.length >= 6} title="Attach Image">
+                    <ImageIcon size={18} />
                   </AttachBtn>
-                  <TextArea ref={supportTextRef}
-                    placeholder={supportPhase === 'naming' ? t('chat.input_placeholder_support_naming') : t('chat.input_placeholder_support')}
-                    value={supportInput}
-                    onChange={e => { setSupportInput(e.target.value); autoResize(e.target) }}
-                    onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendSupportMessage() } }}
-                    rows={1} disabled={supportSending} />
-                  <SendBtn onClick={sendSupportMessage} $loading={supportSending} disabled={supportSending || !supportInput.trim()}>
-                    {supportSending ? <Spinner /> : <Send size={16} />}
+                  <AttachBtn onClick={toggleSupportRecording} disabled={supportSending || (!isSupportRecording && supportAttachments.length >= 6)} title={isSupportRecording ? 'Stop Recording' : 'Voice Message'}>
+                    {isSupportRecording ? <Square size={16} fill="#ef4444" color="#ef4444" /> : <Mic size={18} />}
+                  </AttachBtn>
+                  {isSupportRecording ? (
+                    <VoiceIndicator>Recording... {formatTime(supportRecordingTime)}</VoiceIndicator>
+                  ) : (
+                    <TextArea ref={supportTextRef}
+                      placeholder={supportPhase === 'naming' ? t('chat.input_placeholder_support_naming') : t('chat.input_placeholder_support') + ' (พิมพ์ @ เพื่อเลือกเกม)'}
+                      value={supportInput}
+                      onChange={handleSupportInputChange}
+                      onKeyDown={handleSupportKeyDown}
+                      onPaste={handleSupportPaste}
+                      rows={1} disabled={supportSending} />
+                  )}
+                  {supportMentionQuery !== null && filteredGamesSupport.length > 0 && (
+                    <MentionMenu>
+                      {filteredGamesSupport.map((g, i) => (
+                        <MentionItem key={g} $active={i === supportMentionIndex} onClick={() => insertSupportMention(g)}>
+                          {g}
+                        </MentionItem>
+                      ))}
+                    </MentionMenu>
+                  )}
+                  <SendBtn onClick={isSupportRecording ? toggleSupportRecording : sendSupportMessage} $loading={supportSending} $isRecord={isSupportRecording} disabled={supportSending || (!supportInput.trim() && supportAttachments.length === 0 && !isSupportRecording)}>
+                    {supportSending ? <Spinner /> : isSupportRecording ? <Square size={16} /> : <Send size={16} />}
                   </SendBtn>
                 </InputRow>
               </InputArea>
@@ -762,6 +1175,14 @@ export default function ChatBot() {
         {open ? <ChevronDown size={24} /> : <MessageCircle size={24} />}
         {!open && hasUnread && <UnreadDot>!</UnreadDot>}
       </FloatBtn>
+
+      {/* Lightbox */}
+      {lightboxUrl && (
+        <LightboxOverlay onClick={() => setLightboxUrl(null)}>
+          <LightboxClose onClick={() => setLightboxUrl(null)}>✕</LightboxClose>
+          <LightboxImg src={lightboxUrl} onClick={e => e.stopPropagation()} />
+        </LightboxOverlay>
+      )}
     </Wrap>
   )
 }
