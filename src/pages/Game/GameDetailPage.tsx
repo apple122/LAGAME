@@ -8,6 +8,7 @@ import { useCategoryTranslator } from '../../lib/i18n/CategoryTranslator'
 import { useAdSettings } from '../../context/AdSettingsContext'
 import { trackGameView } from '../../lib/analytics'
 import CommentSection from '../../components/CommentSection/CommentSection'
+import PCSpecChecker from '../../components/PCSpecChecker/PCSpecChecker'
 import { useLanguage } from '../../lib/i18n/LanguageContext'
 import Seo from '../../components/Seo'
 import { getPageUrl, DEFAULT_IMAGE } from '../../lib/seo'
@@ -418,6 +419,9 @@ export default function GameDetailPage() {
           </SpecGrid>
         </Section>
       )}
+
+      {/* PC Spec Checker */}
+      {game && <PCSpecChecker game={game} />}
 
       {/* Full Description */}
       {game.description && (
