@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import styled from 'styled-components'
-import { LayoutDashboard, Gamepad2, Tags, Megaphone, LogOut, Menu, X, Key, MessageSquare } from 'lucide-react'
+import { LayoutDashboard, Gamepad2, Tags, Megaphone, LogOut, Menu, X, Key, MessageSquare, Bot } from 'lucide-react'
 import { useAdminAuth } from '../../context/AdminAuthContext'
 import { supabase } from '../../lib/supabase'
 
@@ -96,6 +96,7 @@ const navItems = [
   { to: '/ap-admin/categories', icon: <Tags size={16} />, label: 'Categories' },
   { to: '/ap-admin/comments', icon: <MessageSquare size={16} />, label: 'Comments' },
   { to: '/ap-admin/api-keys', icon: <Key size={16} />, label: 'API Keys' },
+  { to: '/ap-admin/chatbot-settings', icon: <Bot size={16} />, label: 'Chatbot Settings' },
   { to: '/ap-admin/top-ranking', icon: <Megaphone size={16} />, label: 'AI Top Ranking' },
   { to: '/ap-admin/ads', icon: <Megaphone size={16} />, label: 'Ad Settings' },
 ]

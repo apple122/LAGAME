@@ -17,6 +17,7 @@ import ManageApiKeys from './pages/Admin/ApiKeys/ManageApiKeys'
 import AdminTopRanking from './pages/Admin/TopRanking/AdminTopRanking'
 import AdminSupport from './pages/Admin/Support/AdminSupport'
 import AdminComments from './pages/Admin/Comments/AdminComments'
+import ChatbotSettings from './pages/Admin/Chatbot/ChatbotSettings'
 import CommentsPage from './pages/Comments/CommentsPage'
 import { AdminAuthProvider } from './context/AdminAuthContext'
 import { AdSettingsProvider } from './context/AdSettingsContext'
@@ -64,6 +65,7 @@ function App() {
               <Route path="categories" element={<ManageCategories />} />
               <Route path="ads" element={<AdSettingsPage />} />
               <Route path="api-keys" element={<ManageApiKeys />} />
+              <Route path="chatbot-settings" element={<ChatbotSettings />} />
               <Route path="top-ranking" element={<AdminTopRanking />} />
               <Route path="comments" element={<AdminComments />} />
               <Route path="" element={<Navigate to="dashboard" replace />} />
