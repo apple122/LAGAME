@@ -31,7 +31,7 @@ export default function Footer() {
           </div>
         </div>
         <div style={{ marginTop: 24, textAlign: 'center', fontSize: 13, color: 'rgba(148,163,184,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-          Apple.2u8 <Heart size={12} style={{ color: '#ef4444' }} /> {t('footer.by_team')} &nbsp;·&nbsp; © {new Date().getFullYear()}
+          Apple.2u8 <Heart size={12} style={{ color: '#ef4444' }} /> {t('footer.by_team')} (1) &nbsp;·&nbsp; © {new Date().getFullYear()}
         </div>
       </div>
     </footer>

@@ -491,6 +491,10 @@ export default function Header() {
               <MessageSquare size={15} />
               {t('nav.guestbook')}
             </NavLink>
+
+            <NavLink to="/coming-soon" $active={isActive('/coming-soon')} style={{ color: isActive('/coming-soon') ? '#fbbf24' : 'rgba(251,191,36,0.8)', borderRadius: 8, background: isActive('/coming-soon') ? 'rgba(251,191,36,0.15)' : 'rgba(251,191,36,0.06)' }}>
+              🚀 Coming Soon
+            </NavLink>
           </NavLinks>
 
           {/* Search */}
@@ -551,6 +555,7 @@ export default function Header() {
         <MobileLink to="/az-filter">🔤 A-Z Filter</MobileLink>
         <MobileLink to="/top-games">🏆 Top PC Games</MobileLink>
         <MobileLink to="/comments">💬 Guestbook</MobileLink>
+        <MobileLink to="/coming-soon" style={{ color: '#fbbf24', background: 'rgba(251,191,36,0.06)' }}>🚀 Coming Soon &amp; Free Games</MobileLink>
         <div style={{ padding: '8px 0' }}>
           <p style={{ fontSize: 12, color: 'rgba(148,163,184,0.5)', padding: '8px 16px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Browse A-Z</p>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, padding: '0 16px' }}>

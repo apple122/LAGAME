@@ -21,8 +21,20 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://example.com/game/resident-evil-requiem</loc>
+    <lastmod>2026-08-16T04:28:19.011Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://example.com/game/mortal-shell</loc>
+    <lastmod>2026-08-12T09:21:23.195Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
     <loc>https://example.com/game/marvel-s-wolverine</loc>
-    <lastmod>2026-08-09T22:11:30.313Z</lastmod>
+    <lastmod>2026-08-09T23:19:33.435Z</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
@@ -161,12 +173,6 @@
   <url>
     <loc>https://example.com/game/grand-theft-auto-v</loc>
     <lastmod>2026-08-09T20:56:31.508Z</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://example.com/game/resident-evil-requiem</loc>
-    <lastmod>2026-08-09T20:53:57.812Z</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>

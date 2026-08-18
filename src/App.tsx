@@ -19,6 +19,7 @@ import AdminSupport from './pages/Admin/Support/AdminSupport'
 import AdminComments from './pages/Admin/Comments/AdminComments'
 import ChatbotSettings from './pages/Admin/Chatbot/ChatbotSettings'
 import CommentsPage from './pages/Comments/CommentsPage'
+import ComingSoonPage from './pages/ComingSoon/ComingSoonPage'
 import { AdminAuthProvider } from './context/AdminAuthContext'
 import { AdSettingsProvider } from './context/AdSettingsContext'
 import ProtectedAdminRoute from './components/ProtectedAdminRoute'
@@ -40,6 +41,7 @@ function App() {
               <Route path="az-filter" element={<AZFilterPage />} />
               <Route path="top-games" element={<TopGamesPage />} />
               <Route path="comments" element={<CommentsPage />} />
+              <Route path="coming-soon" element={<ComingSoonPage />} />
             </Route>
 
             {/* Interstitial download page (no layout) */}

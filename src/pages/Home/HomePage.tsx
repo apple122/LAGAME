@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+// import { Link } from 'react-router-dom'
 import styled, { keyframes, css } from 'styled-components'
 
 import { useLanguage } from '../../lib/i18n/LanguageContext'
@@ -200,6 +201,28 @@ const CatBtn = styled.button<{ $active: boolean }>`
   margin-bottom: 2px;
   &:hover { background: rgba(124,58,237,0.15); color: #fff; }
 `
+
+// const SidebarLink = styled(Link)`
+//   display: flex;
+//   align-items: center;
+//   gap: 8px;
+//   width: 100%;
+//   padding: 10px 14px;
+//   margin-top: 12px;
+//   border-radius: 10px;
+//   border: 1px dashed rgba(251,191,36,0.3);
+//   background: rgba(251,191,36,0.06);
+//   color: rgba(251,191,36,0.85);
+//   font-size: 13px;
+//   font-weight: 600;
+//   text-decoration: none;
+//   transition: all 0.2s;
+//   &:hover {
+//     background: rgba(251,191,36,0.15);
+//     border-color: rgba(251,191,36,0.5);
+//     color: #fbbf24;
+//   }
+// `
 
 const Content = styled.div``
 
@@ -759,7 +782,7 @@ export default function HomePage() {
             </ToolbarLeft>
             <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
               {/* Desktop dropdowns */}
-                <SortSelect value={selectedPlatform} onChange={e => { setSelectedPlatform(e.target.value); setPage(1) }}>
+              <SortSelect value={selectedPlatform} onChange={e => { setSelectedPlatform(e.target.value); setPage(1) }}>
                 <option value="all">{t('home.platform_all')}</option>
                 <option value="windows">{t('home.platform_windows')}</option>
                 <option value="macos">{t('home.platform_macos')}</option>
