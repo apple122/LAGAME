@@ -13,6 +13,15 @@ export default defineConfig({
         target: 'https://steamspy.com',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/steamspy/, '')
+      },
+      '/api/epic': {
+        target: 'https://store-site-backend-static.ak.epicgames.com',
+        changeOrigin: true,
+        rewrite: () => '/freeGamesPromotions?locale=th&country=TH&allowCountries=TH',
+        headers: {
+          'Origin': 'https://store.epicgames.com',
+          'Referer': 'https://store.epicgames.com/',
+        }
       }
     }
   }

@@ -27,17 +27,17 @@ const Nav = styled.nav`
   display: flex;
   align-items: center;
   gap: 32px;
+  @media (max-width: 1080px) {
+    padding: 0 16px;
+    gap: 16px;
+  }
   @media (max-width: 900px) {
     padding: 0 18px;
-    gap: 24px;
+    gap: 12px;
   }
   @media (max-width: 820px) {
     padding: 0 14px;
-    gap: 18px;
-  }
-  @media (max-width: 768px) {
-    padding: 0 16px;
-    gap: 16px;
+    gap: 8px;
   }
 `
 
@@ -52,16 +52,22 @@ const Logo = styled(Link)`
     height: 60px;
     width: auto;
     border-radius: 4px;
+    @media (max-width: 1080px) {
+      height: 48px;
+    }
     @media (max-width: 900px) {
-      height: 54px;
+      height: 42px;
     }
     @media (max-width: 768px) {
-      height: 48px;
+      height: 38px;
     }
   }
 
-  @media (max-width: 768px) {
+  @media (max-width: 1080px) {
     gap: 8px;
+  }
+  @media (max-width: 768px) {
+    gap: 6px;
   }
 `
 
@@ -79,11 +85,14 @@ const LogoTitle = styled.span`
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  @media (max-width: 1080px) {
+    font-size: 18px;
+  }
   @media (max-width: 900px) {
-    font-size: 20px;
+    font-size: 17px;
   }
   @media (max-width: 768px) {
-    font-size: 18px;
+    font-size: 15px;
   }
 `
 
@@ -92,17 +101,21 @@ const LogoSubtitle = styled.span`
   font-weight: 700;
   color: #94a3b8;
   letter-spacing: 1px;
-  margin-top: 2px;
+  // margin-top: 2px;
   display: flex;
   align-items: center;
   gap: 4px;
-  @media (max-width: 900px) {
+  @media (max-width: 1080px) {
     font-size: 9px;
     gap: 3px;
   }
-  @media (max-width: 768px) {
-    font-size: 9px;
+  @media (max-width: 900px) {
+    font-size: 8px;
     gap: 3px;
+  }
+  @media (max-width: 768px) {
+    font-size: 7px;
+    gap: 2px;
   }
 `
 
@@ -113,7 +126,7 @@ const NavLinks = styled.div`
   @media (max-width: 900px) {
     gap: 2px;
   }
-  @media (max-width: 768px) { display: none; }
+  @media (max-width: 1080px) { display: none; }
 `
 
 const NavLink = styled(Link) <{ $active?: boolean }>`
@@ -211,7 +224,7 @@ const SearchWrap = styled.div<{ $expanded?: boolean }>`
     max-width: 240px;
   }
 
-  @media (max-width: 768px) {
+  @media (max-width: 1080px) {
     position: ${p => p.$expanded ? 'fixed' : 'relative'};
     ${p => p.$expanded ? `
       inset: 0;
@@ -256,7 +269,7 @@ const SearchInput = styled.input<{ $expanded?: boolean }>`
     padding: 8px 12px 8px 36px;
   }
 
-  @media (max-width: 768px) {
+  @media (max-width: 1080px) {
     ${p => p.$expanded ? `
       height: 46px;
       font-size: 16px;
@@ -278,7 +291,7 @@ const SearchInput = styled.input<{ $expanded?: boolean }>`
 
 const MobileSearchClose = styled.button`
   display: none;
-  @media (max-width: 768px) {
+  @media (max-width: 1080px) {
     display: flex;
     position: absolute;
     right: 24px;
@@ -307,7 +320,7 @@ const SearchIcon = styled.div<{ $expanded?: boolean }>`
   align-items: center;
   z-index: 1;
   pointer-events: none;
-  @media (max-width: 768px) {
+  @media (max-width: 1080px) {
     left: ${p => p.$expanded ? '30px' : '12px'};
   }
 `
@@ -343,12 +356,12 @@ const MobileMenuBtn = styled.button`
   cursor: pointer;
   padding: 6px;
   margin-left: auto;
-  @media (max-width: 768px) { display: flex; align-items: center; }
+  @media (max-width: 1080px) { display: flex; align-items: center; }
 `
 
 const MobileMenu = styled.div<{ $open: boolean }>`
   display: none;
-  @media (max-width: 768px) {
+  @media (max-width: 1080px) {
     display: ${p => p.$open ? 'flex' : 'none'};
     flex-direction: column;
     position: fixed;
@@ -386,7 +399,7 @@ const Loading = styled.div`
   border-top-color: #7c3aed;
   border-radius: 50%;
   animation: spin 0.6s linear infinite;
-  @media (max-width: 768px) {
+  @media (max-width: 1080px) {
     right: 70px;
   }
 `
@@ -451,7 +464,10 @@ export default function Header() {
             <LogoText>
               <LogoTitle>LA-GAME</LogoTitle>
               <LogoSubtitle>
-                LAOS 🇱🇦
+                <div style={{ display: 'flex', alignItems: 'end', gap: '2px' }}>
+                  <span style={{ fontSize: 10, display: 'flex' }}>LAOS </span>
+                  <span style={{ fontSize: 8, display: 'flex', fontWeight: 'bold' }}>LA</span>
+                </div>
                 <img src="/LAOS.png" alt="LAGAME LAOS" style={{ height: 12, width: 'auto', borderRadius: 4 }} />
               </LogoSubtitle>
             </LogoText>
@@ -547,10 +563,10 @@ export default function Header() {
             {mobileOpen ? <X size={22} /> : <Menu size={22} />}
           </MobileMenuBtn>
         </Nav>
-      </HeaderWrap>
+      </HeaderWrap >
 
       {/* Mobile Menu */}
-      <MobileMenu $open={mobileOpen}>
+      < MobileMenu $open={mobileOpen} >
         <MobileLink to="/">🏠 Home</MobileLink>
         <MobileLink to="/az-filter">🔤 A-Z Filter</MobileLink>
         <MobileLink to="/top-games">🏆 Top PC Games</MobileLink>
@@ -564,7 +580,7 @@ export default function Header() {
             ))}
           </div>
         </div>
-      </MobileMenu>
+      </MobileMenu >
     </>
   )
 }

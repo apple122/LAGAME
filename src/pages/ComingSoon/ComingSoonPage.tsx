@@ -4,6 +4,7 @@ import { Rocket, Clock, ExternalLink, Loader2, RefreshCw } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import type { Game } from '../../lib/supabase'
 import Seo from '../../components/Seo'
+import { useLanguage } from '../../lib/i18n/LanguageContext'
 
 // ─── Types ─────────────────────────────────────────────────────
 interface EpicFreeGame {
@@ -24,7 +25,7 @@ interface SteamGame {
 
 
 // ─── Cache (localStorage, 24h TTL) ────────────────────────────
-const CACHE_KEY = 'epic_free_games_v2'
+const CACHE_KEY = 'epic_free_games_v3'
 const CACHE_TTL = 24 * 60 * 60 * 1000
 
 function getCached(): EpicFreeGame[] | null {
@@ -50,10 +51,8 @@ async function fetchEpicGames(force = false): Promise<EpicFreeGame[]> {
     if (hit) return hit
   }
 
-  const targetUrl = 'https://store-site-backend-static.ak.epicgames.com/freeGamesPromotions?locale=th&country=TH&allowCountries=TH'
-  const epicUrl = `https://corsproxy.io/?url=${encodeURIComponent(targetUrl)}`
-
-  const res = await fetch(epicUrl, { cache: 'no-store' })
+  // /api/epic → Vite proxy (dev) or Cloudflare Pages Function (production)
+  const res = await fetch('/api/epic', { cache: 'no-store' })
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   const json = await res.json()
 
@@ -80,6 +79,7 @@ async function fetchEpicGames(force = false): Promise<EpicFreeGame[]> {
       : 'https://store.epicgames.com/en-US/free-games'
 
     // Current free offers
+    let addedNow = false;
     for (const bucket of (el.promotions?.promotionalOffers ?? [])) {
       for (const offer of (bucket.promotionalOffers ?? [])) {
         if (offer.discountSetting?.discountPercentage === 0) {
@@ -92,14 +92,20 @@ async function fetchEpicGames(force = false): Promise<EpicFreeGame[]> {
             epicUrl: link,
             isUpcoming: false,
           })
+          addedNow = true;
+          break; // Stop processing offers for this bucket if we found one
         }
       }
+      if (addedNow) break;
     }
 
     // Upcoming free offers
+    let addedSoon = false;
     for (const bucket of (el.promotions?.upcomingPromotionalOffers ?? [])) {
       for (const offer of (bucket.promotionalOffers ?? [])) {
-        if (offer.discountSetting?.discountPercentage === 0) {
+        // Upcoming offers often don't have discountPercentage=0 set yet, 
+        // they just exist in the upcomingPromotionalOffers array
+        if (offer.discountSetting?.discountPercentage === 0 || el.promotions?.upcomingPromotionalOffers?.length > 0) {
           results.push({
             id: `${el.id}-soon`,
             title: el.title,
@@ -109,8 +115,11 @@ async function fetchEpicGames(force = false): Promise<EpicFreeGame[]> {
             epicUrl: link,
             isUpcoming: true,
           })
+          addedSoon = true;
+          break;
         }
       }
+      if (addedSoon) break;
     }
   }
 
@@ -133,10 +142,10 @@ async function fetchEpicGames(force = false): Promise<EpicFreeGame[]> {
 async function fetchSteamUpcoming(): Promise<SteamGame[]> {
   try {
     const url = 'https://store.steampowered.com/search/results?filter=popularwishlist&os=win&infinite=1'
-    const res = await fetch(`https://corsproxy.io/?url=${encodeURIComponent(url)}`)
+    const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`)
     if (!res.ok) return []
-    const data = await res.json()
-    const html = data?.results_html || ''
+    const wrapper = await res.json()
+    const html = wrapper?.contents || ''
 
     const parser = new DOMParser()
     const doc = parser.parseFromString(html, 'text/html')
@@ -146,10 +155,23 @@ async function fetchSteamUpcoming(): Promise<SteamGame[]> {
       const imgElem = row.querySelector('.search_capsule img') as HTMLImageElement
       const titleElem = row.querySelector('.title')
       const appId = parseInt(row.getAttribute('data-ds-appid') || '0', 10)
-      let capsule = imgElem?.src || ''
-      if (capsule) {
-        // use high res capsule if possible
+      let capsule = imgElem?.getAttribute('src') || ''
+      const srcset = imgElem?.getAttribute('srcset') || ''
+
+      // Steam often uses srcset for lazy loading, with the largest image at the end
+      if (srcset) {
+        const urls = srcset.match(/(https:\/\/[^\s,]+)/g)
+        if (urls && urls.length > 0) {
+          capsule = urls[urls.length - 1]
+        }
+      }
+
+      // If it's a lazy-load placeholder, construct the URL manually via appId
+      if (capsule.includes('trans.gif') && appId) {
+        capsule = `https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/${appId}/capsule_616x353.jpg`
+      } else if (capsule) {
         capsule = capsule.replace('capsule_231x87', 'capsule_616x353')
+          .replace('capsule_sm_120', 'capsule_616x353')
       }
       return {
         id: appId,
@@ -240,14 +262,18 @@ const Section = styled.section`margin-bottom:48px`
 const SectionHeader = styled.div`
   display:flex;
   align-items:center;
+  flex-wrap:wrap;
   gap:10px;
   margin-bottom:20px;
   padding-bottom:12px;
   border-bottom:1px solid rgba(124,58,237,.15);
 `
 const SectionTitle = styled.h2`
-  font-size:18px;font-weight:700;color:#e2e8f0;margin:0;
-  display:flex;align-items:center;gap:8px;
+  font-size:clamp(15px, 3.5vw, 18px);
+  font-weight:700;color:#e2e8f0;margin:0;
+  display:flex;
+  align-items:center;gap:8px;
+  // flex-wrap:wrap;
 `
 const Badge = styled.span`
   font-size:11px;font-weight:600;padding:3px 10px;
@@ -280,14 +306,17 @@ const EpicGrid = styled.div`
   display:grid;
   grid-template-columns:repeat(auto-fill,minmax(190px,1fr));
   gap:20px;
-  @media(max-width:640px){grid-template-columns:repeat(2,1fr);gap:12px}
+  @media(max-width:640px){
+    grid-template-columns:repeat(auto-fill,minmax(145px,1fr));
+    gap:12px;
+  }
 `
 const EpicCard = styled.a<{ $now: boolean }>`
   display:block;border-radius:14px;overflow:hidden;
   background:rgba(18,18,31,.9);
   border:1px solid ${p => p.$now ? 'rgba(34,197,94,.25)' : 'rgba(251,191,36,.25)'};
   text-decoration:none;
-  transition:transform .25s,box-shadow .25s,border-color .25s;
+  transition:transform .25s,box-shadow .25s,border-color .25s,opacity .25s;
   position:relative;
   &:hover{
     transform:translateY(-4px);
@@ -296,10 +325,14 @@ const EpicCard = styled.a<{ $now: boolean }>`
   }
 `
 const EpicImgWrap = styled.div`position:relative;aspect-ratio:3/4;overflow:hidden;background:#0d0d1a`
-const EpicImg = styled.img`
+const EpicImg = styled.img<{ $now?: boolean }>`
   width:100%;height:100%;object-fit:cover;
-  transition:transform .4s ease;
-  ${EpicCard}:hover &{transform:scale(1.05)}
+  transition:transform .4s ease,opacity .4s ease;
+  opacity: ${p => p.$now ? 1 : 0.5};
+  ${EpicCard}:hover &{
+    transform:scale(1.05);
+    opacity: 1;
+  }
 `
 const EpicBadge = styled.div<{ $now: boolean }>`
   position:absolute;top:8px;left:8px;
@@ -328,6 +361,7 @@ const EpicDate = styled.div`
 
 // ─── Component ─────────────────────────────────────────────────
 export default function ComingSoonPage() {
+  const { t } = useLanguage()
   const [nowGames, setNowGames] = useState<EpicFreeGame[]>([])
   const [soonGames, setSoonGames] = useState<EpicFreeGame[]>([])
   const [epicLoading, setEpicLoading] = useState(true)
@@ -403,7 +437,7 @@ export default function ComingSoonPage() {
       <HeroBanner>
         <HeroIconWrap>🚀</HeroIconWrap>
         <HeroTitle>Coming Soon & Free Games</HeroTitle>
-        <HeroSub>เกมแจกฟรีและที่กำลังจะมาถึงจาก Epic Games Store · อัปเดตทุก 24 ชั่วโมง</HeroSub>
+        <HeroSub>{t('soon.titleGL')}</HeroSub>
       </HeroBanner>
 
       <Wrap>
@@ -413,55 +447,53 @@ export default function ComingSoonPage() {
           <SectionHeader>
             <SectionTitle>
               <span style={{ color: '#0078f2', fontWeight: 800, fontSize: 13 }}>EPIC</span>
-              🎮 แจกฟรีตอนนี้ / เร็วๆ นี้
+              🎮 {t('soon.epic.title')}
             </SectionTitle>
-            {!epicLoading && <Badge>{nowGames.length + soonGames.length} เกม</Badge>}
+            {!epicLoading && <Badge>{nowGames.length + soonGames.length} {t('soon.games')}</Badge>}
             <RefreshBtn onClick={() => loadEpic(true)} disabled={refreshing || epicLoading}>
               <SpinRefreshIcon $active={refreshing}><RefreshCw size={12} /></SpinRefreshIcon>
-              {refreshing ? 'กำลังรีเฟรช...' : 'รีเฟรช'}
+              {refreshing ? '...' : t('soon.refresh')}
             </RefreshBtn>
           </SectionHeader>
 
           {epicLoading ? (
             <StatusRow>
               <SpinIcon><Loader2 size={16} /></SpinIcon>
-              กำลังดึงข้อมูลจาก Epic Games Store...
+              {t('soon.epic.loading')}
             </StatusRow>
           ) : epicError ? (
-            <ErrorBox>⚠️ {epicError} — ลองกด "รีเฟรช" อีกครั้ง</ErrorBox>
+            <ErrorBox>⚠️ {epicError} {t('soon.error_refresh')}</ErrorBox>
           ) : (nowGames.length === 0 && soonGames.length === 0) ? (
-            <StatusRow>ไม่มีเกมแจกฟรีในขณะนี้</StatusRow>
+            <StatusRow>{t('soon.epic.empty')}</StatusRow>
           ) : (
             <EpicGrid>
               {nowGames.map(g => (
                 <EpicCard key={g.id} href={g.epicUrl} target="_blank" rel="noopener noreferrer" $now>
                   <EpicImgWrap>
-                    <EpicImg src={g.coverImage} alt={g.title} loading="lazy"
+                    <EpicImg $now src={g.coverImage} alt={g.title} loading="lazy"
                       onError={e => { (e.target as HTMLImageElement).style.opacity = '.3' }} />
-                    <EpicBadge $now>🎁 แจกฟรีแล้ว</EpicBadge>
+                    <EpicBadge $now>{t('soon.epic.now')}</EpicBadge>
                     <EpicSource>EPIC GAMES</EpicSource>
                   </EpicImgWrap>
                   <EpicBody>
                     <EpicTitle title={g.title}>{g.title}</EpicTitle>
-                    <EpicDate><Clock size={11} /> ถึง {fmtDate(g.endDate)}</EpicDate>
+                    <EpicDate><Clock size={11} /> {t('soon.epic.until').replace('{date}', fmtDate(g.endDate))}</EpicDate>
                   </EpicBody>
                 </EpicCard>
               ))}
               {soonGames.map(g => (
                 <EpicCard key={g.id} href={g.epicUrl} target="_blank" rel="noopener noreferrer" $now={false}>
                   <EpicImgWrap>
-                    <EpicImg src={g.coverImage} alt={g.title} loading="lazy"
+                    <EpicImg $now={false} src={g.coverImage} alt={g.title} loading="lazy"
                       onError={e => { (e.target as HTMLImageElement).style.opacity = '.3' }} />
                     <EpicBadge $now={false} style={{ background: '#0078f2', color: '#fff', border: 'none' }}>
-                      🎁 แจกฟรีเร็วๆ นี้
+                      {t('soon.epic.soon_badge')}
                     </EpicBadge>
                     <EpicSource>EPIC GAMES</EpicSource>
                   </EpicImgWrap>
-                  <EpicBody style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                  <EpicBody>
                     <EpicTitle title={g.title}>{g.title}</EpicTitle>
-                    <div style={{ fontSize: '11px', color: '#60a5fa', fontWeight: 'bold', marginTop: '6px', lineHeight: 1.4 }}>
-                      กำลังจะมีการแจกฟรีในเร็วๆ นี้<br />ในวันที่ {fmtDate(g.startDate)}
-                    </div>
+                    <EpicDate style={{ color: '#60a5fa' }}><Clock size={11} /> {t('soon.epic.starts').replace('{date}', fmtDate(g.startDate))}</EpicDate>
                   </EpicBody>
                 </EpicCard>
               ))}
@@ -472,35 +504,35 @@ export default function ComingSoonPage() {
         {/* ── Unified Coming Soon Grid ────────────────────────────── */}
         <Section>
           <SectionHeader>
-            <SectionTitle><Rocket size={18} style={{ color: '#fbbf24' }} /> 🔜 Coming Soon (เกมที่กำลังจะมา)</SectionTitle>
+            <SectionTitle><Rocket size={18} style={{ color: '#fbbf24' }} /> {t('soon.title')}</SectionTitle>
             {(!localLoading && !epicLoading && !steamLoading) && (
-              <Badge>{localGames.length + steamGames.length} เกม</Badge>
+              <Badge>{localGames.length + steamGames.length} {t('soon.games')}</Badge>
             )}
           </SectionHeader>
 
           {(localLoading || epicLoading || steamLoading) ? (
             <StatusRow>
               <SpinIcon><Loader2 size={16} /></SpinIcon>
-              กำลังดึงข้อมูลทั้งหมด...
+              {t('soon.all_loading')}
             </StatusRow>
           ) : (localGames.length === 0 && steamGames.length === 0) ? (
-            <StatusRow>ยังไม่มีเกมที่จะเข้ามาใหม่ในขณะนี้</StatusRow>
+            <StatusRow>{t('soon.all_empty')}</StatusRow>
           ) : (
             <EpicGrid>
               {/* Local Games First */}
               {localGames.map(g => (
                 <EpicCard key={`local-${g.id}`} href={`/game/${g.slug}`} $now={false}>
                   <EpicImgWrap>
-                    <EpicImg src={g.cover_image || undefined} alt={g.title} loading="lazy" style={{ objectFit: 'cover' }}
+                    <EpicImg $now src={g.cover_image || undefined} alt={g.title} loading="lazy" style={{ objectFit: 'cover' }}
                       onError={e => { (e.target as HTMLImageElement).style.opacity = '.3' }} />
                     <EpicBadge $now={false} style={{ background: 'linear-gradient(135deg, #f59e0b, #fbbf24)', color: '#000' }}>
-                      🚀 เตรียมเข้าคลัง
+                      {t('soon.local.soon_badge')}
                     </EpicBadge>
-                    <EpicSource style={{ background: '#7c3aed' }}>OUR LIBRARY</EpicSource>
+                    <EpicSource style={{ background: '#7c3aed' }}>{t('soon.local.source')}</EpicSource>
                   </EpicImgWrap>
                   <EpicBody>
                     <EpicTitle title={g.title}>{g.title}</EpicTitle>
-                    <EpicDate><Clock size={11} /> เร็วๆ นี้</EpicDate>
+                    <EpicDate><Clock size={11} /> {t('soon.local.soon')}</EpicDate>
                   </EpicBody>
                 </EpicCard>
               ))}
@@ -509,16 +541,16 @@ export default function ComingSoonPage() {
               {steamGames.map(g => (
                 <EpicCard key={`steam-${g.id}`} href={`https://store.steampowered.com/app/${g.id}`} target="_blank" rel="noopener noreferrer" $now={false}>
                   <EpicImgWrap>
-                    <EpicImg src={g.large_capsule_image} alt={g.name} loading="lazy"
+                    <EpicImg $now src={g.large_capsule_image} alt={g.name} loading="lazy"
                       onError={e => { (e.target as HTMLImageElement).style.opacity = '.3' }} />
                     <EpicBadge $now={false} style={{ background: '#171a21', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }}>
-                      🌍 ยอดฮิต (Steam)
+                      {t('soon.steam.hot_badge')}
                     </EpicBadge>
-                    <EpicSource style={{ background: '#171a21' }}>STEAM</EpicSource>
+                    <EpicSource style={{ background: '#171a21' }}>{t('soon.steam.source')}</EpicSource>
                   </EpicImgWrap>
                   <EpicBody>
                     <EpicTitle title={g.name}>{g.name}</EpicTitle>
-                    <EpicDate><Clock size={11} /> กำลังมาแรง</EpicDate>
+                    <EpicDate><Clock size={11} /> {t('soon.steam.hot')}</EpicDate>
                   </EpicBody>
                 </EpicCard>
               ))}
@@ -530,12 +562,12 @@ export default function ComingSoonPage() {
 
         {/* ── Attribution ─────────────────────────────────── */}
         <div style={{ textAlign: 'center', color: 'rgba(148,163,184,.4)', fontSize: 12, marginTop: 20 }}>
-          ข้อมูลจาก{' '}
+          {t('soon.attribution')}
           <a href="https://store.epicgames.com/en-US/free-games" target="_blank" rel="noopener noreferrer"
             style={{ color: '#0078f2', textDecoration: 'none' }}>
             Epic Games Store <ExternalLink size={10} style={{ display: 'inline', verticalAlign: 'middle' }} />
           </a>
-          {' '}· Cache 24 ชั่วโมง
+          {t('soon.cache')}
         </div>
       </Wrap>
     </>
