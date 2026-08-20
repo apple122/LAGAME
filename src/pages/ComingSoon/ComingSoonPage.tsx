@@ -48,7 +48,13 @@ function setCached(data: EpicFreeGame[]) {
 async function fetchEpicGames(force = false): Promise<EpicFreeGame[]> {
   if (!force) {
     const hit = getCached()
-    if (hit) return hit
+    if (hit) {
+      const nowMs = Date.now()
+      return hit.map(g => ({
+        ...g,
+        isUpcoming: new Date(g.startDate).getTime() > nowMs
+      })).filter(g => new Date(g.endDate).getTime() > nowMs)
+    }
   }
 
   // /api/epic → Vite proxy (dev) or Cloudflare Pages Function (production)
@@ -126,17 +132,23 @@ async function fetchEpicGames(force = false): Promise<EpicFreeGame[]> {
   // Deduplicate by title
   const seen = new Set<string>()
   const unique = results.filter(g => {
-    const k = g.title + g.isUpcoming
+    const k = g.title
     if (seen.has(k)) return false
     seen.add(k)
     return true
   })
 
-  // Sort: upcoming first
-  unique.sort((a, b) => (a.isUpcoming === b.isUpcoming ? 0 : a.isUpcoming ? -1 : 1))
+  const nowMs = Date.now()
+  const evaluated = unique.map(g => ({
+    ...g,
+    isUpcoming: new Date(g.startDate).getTime() > nowMs
+  })).filter(g => new Date(g.endDate).getTime() > nowMs)
 
-  setCached(unique)
-  return unique
+  // Sort: upcoming first
+  evaluated.sort((a, b) => (a.isUpcoming === b.isUpcoming ? 0 : a.isUpcoming ? -1 : 1))
+
+  setCached(evaluated)
+  return evaluated
 }
 
 async function fetchSteamUpcoming(): Promise<SteamGame[]> {
@@ -187,7 +199,10 @@ async function fetchSteamUpcoming(): Promise<SteamGame[]> {
 
 // ─── Helpers ───────────────────────────────────────────────────
 function fmtDate(iso: string) {
-  return new Date(iso).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' })
+  const d = new Date(iso)
+  const dateStr = d.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' })
+  const timeStr = d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
+  return `${dateStr} ${timeStr} น.`
 }
 
 // ─── Animations ────────────────────────────────────────────────
@@ -358,6 +373,75 @@ const EpicDate = styled.div`
   display:flex;align-items:center;gap:5px;
 `
 
+// ─── Countdown Timer Component ─────────────────────────────────
+const CountdownWrap = styled.div`
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(4px);
+  padding: 8px 12px;
+  border-radius: 8px;
+  text-align: center;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  width: 85%;
+  z-index: 2;
+  pointer-events: none;
+`
+
+const TimeBox = styled.div`
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+`
+
+const TimeSection = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  span.val { font-size: 15px; }
+  span.lbl { font-size: 9px; color: rgba(255,255,255,0.6); text-transform: uppercase; margin-top: 2px; }
+`
+
+function CountdownTimer({ targetDate, label = 'Starts in' }: { targetDate: string, label?: string }) {
+  const [timeLeft, setTimeLeft] = useState(() => Math.max(0, new Date(targetDate).getTime() - Date.now()));
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const remaining = Math.max(0, new Date(targetDate).getTime() - Date.now());
+      setTimeLeft(remaining);
+      if (remaining === 0) clearInterval(timer);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [targetDate]);
+
+  if (timeLeft === 0) return null;
+
+  const days = Math.floor(timeLeft / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((timeLeft / (1000 * 60 * 60)) % 24);
+  const minutes = Math.floor((timeLeft / 1000 / 60) % 60);
+  const seconds = Math.floor((timeLeft / 1000) % 60);
+
+  return (
+    <CountdownWrap>
+      <div style={{ fontSize: 10, color: '#94a3b8', marginBottom: 6 }}>{label}</div>
+      <TimeBox>
+        {days > 0 && (
+          <TimeSection><span className="val">{days}</span><span className="lbl">d</span></TimeSection>
+        )}
+        <TimeSection><span className="val">{hours.toString().padStart(2, '0')}</span><span className="lbl">h</span></TimeSection>
+        <TimeSection><span className="val">{minutes.toString().padStart(2, '0')}</span><span className="lbl">m</span></TimeSection>
+        <TimeSection><span className="val">{seconds.toString().padStart(2, '0')}</span><span className="lbl">s</span></TimeSection>
+      </TimeBox>
+    </CountdownWrap>
+  );
+}
+
 
 // ─── Component ─────────────────────────────────────────────────
 export default function ComingSoonPage() {
@@ -489,6 +573,7 @@ export default function ComingSoonPage() {
                     <EpicBadge $now={false} style={{ background: '#0078f2', color: '#fff', border: 'none' }}>
                       {t('soon.epic.soon_badge')}
                     </EpicBadge>
+                    <CountdownTimer targetDate={g.startDate} label="ปลดล็อคในอีก" />
                     <EpicSource>EPIC GAMES</EpicSource>
                   </EpicImgWrap>
                   <EpicBody>
